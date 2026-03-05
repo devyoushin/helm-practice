@@ -1,6 +1,6 @@
 # 바이너리 파일을 직접 다운로드하여 설치
 
-### 1. 최신 버전 압축 파일 다운로드 (AMD64 기준)
+### 1. 최신 버전 압축 파일 다운로드
 ```bash
 wget https://get.helm.sh/helm-v3.14.0-linux-amd64.tar.gz
 ```
