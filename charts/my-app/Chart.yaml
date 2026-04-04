@@ -1,0 +1,6 @@
+apiVersion: v2
+name: my-app
+description: A simple nginx-based application chart for helm-practice
+type: application
+version: 0.1.0
+appVersion: "1.21.0"
