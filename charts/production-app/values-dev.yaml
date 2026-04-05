@@ -1,0 +1,46 @@
+# ──────────────────────────────────────────────
+# Dev 환경 오버라이드
+# 사용법: helm install production-app charts/production-app -f charts/production-app/values-dev.yaml
+# ──────────────────────────────────────────────
+
+replicaCount: 1
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+autoscaling:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: false
+
+config:
+  APP_ENV: "development"
+  LOG_LEVEL: "debug"
+  SERVER_PORT: "8080"
+  MAX_CONNECTIONS: "10"
+
+ingress:
+  enabled: true
+  hosts:
+    - host: production-app.dev.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+# dev에서는 보안 컨텍스트를 느슨하게 설정 (디버깅 편의)
+podSecurityContext:
+  runAsNonRoot: false
+  runAsUser: 0
+  fsGroup: 0
+
+containerSecurityContext:
+  allowPrivilegeEscalation: true
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop: []

@@ -1,0 +1,169 @@
+# ──────────────────────────────────────────────
+# production-app 기본값 (values.yaml)
+# 환경별 오버라이드: values-dev.yaml / values-staging.yaml / values-prod.yaml
+# ──────────────────────────────────────────────
+
+replicaCount: 2
+
+image:
+  repository: nginx
+  tag: "1.25.3"
+  pullPolicy: IfNotPresent
+
+# 서비스 설정
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+# Ingress 설정
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"  # TLS 사용 시 주석 해제
+  hosts:
+    - host: production-app.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  # tls:
+  #   - secretName: production-app-tls
+  #     hosts:
+  #       - production-app.example.com
+
+# 리소스 설정 (환경별로 values 파일에서 오버라이드)
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# HPA (HorizontalPodAutoscaler) 설정
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# PDB (PodDisruptionBudget) 설정
+# 노드 드레인/업그레이드 시 최소 가용 Pod 수 보장
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+  # maxUnavailable: 1  # minAvailable과 둘 중 하나만 사용
+
+# Liveness / Readiness Probe
+# 실전에서는 반드시 설정 — 없으면 비정상 Pod에 트래픽이 계속 들어옴
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 15
+  periodSeconds: 20
+  failureThreshold: 3
+
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  failureThreshold: 3
+
+# ConfigMap — 앱 설정값 (민감하지 않은 값)
+config:
+  APP_ENV: "development"
+  LOG_LEVEL: "info"
+  SERVER_PORT: "8080"
+  MAX_CONNECTIONS: "100"
+
+# Secret — 민감한 값 (실전에서는 외부 Secret 관리 도구 사용 권장)
+# 주의: values.yaml에 평문으로 관리하지 말 것 → values-secret.yaml로 분리 후 .gitignore
+secret:
+  create: true
+  data:
+    DB_PASSWORD: ""       # helm install 시 --set secret.data.DB_PASSWORD=xxx 로 주입
+    API_KEY: ""           # 또는 외부 Secret 관리자(ESO, Vault) 연동
+
+# ServiceAccount
+serviceAccount:
+  create: true
+  annotations: {}
+  # EKS IRSA 사용 시:
+  # annotations:
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::123456789:role/my-role
+  name: ""
+
+# Pod 레이블 / 어노테이션 추가
+podAnnotations:
+  prometheus.io/scrape: "false"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/metrics"
+
+podLabels: {}
+
+# 보안 컨텍스트
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 2000
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# 스케줄링 설정
+nodeSelector: {}
+tolerations: []
+
+# Pod 분산 배치 (같은 노드에 몰리지 않도록)
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - production-app
+          topologyKey: kubernetes.io/hostname
+
+# 롤링 업데이트 전략
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0   # 무중단 배포: 항상 minReplicas 이상 유지
+
+# 종료 대기 시간 (초) — graceful shutdown 보장
+terminationGracePeriodSeconds: 60
+
+# 추가 환경변수
+extraEnv: []
+# - name: SOME_VAR
+#   valueFrom:
+#     secretKeyRef:
+#       name: external-secret
+#       key: some-key
+
+# 볼륨 마운트 (tmp 디렉토리 — readOnlyRootFilesystem: true 일 때 필요)
+extraVolumes:
+  - name: tmp
+    emptyDir: {}
+
+extraVolumeMounts:
+  - name: tmp
+    mountPath: /tmp

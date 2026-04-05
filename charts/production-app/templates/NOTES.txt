@@ -1,0 +1,35 @@
+✅ {{ include "production-app.fullname" . }} 배포 완료!
+
+환경: {{ .Values.config.APP_ENV }}
+이미지: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+Replicas: {{ .Values.replicaCount }}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔍 배포 상태 확인:
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+  helm status {{ .Release.Name }} -n {{ .Release.Namespace }}
+
+{{- if .Values.ingress.enabled }}
+🌐 접속 URL:
+  {{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}
+  {{- end }}
+{{- else }}
+🌐 로컬 접속 (port-forward):
+  kubectl port-forward svc/{{ include "production-app.fullname" . }} 8080:{{ .Values.service.port }} -n {{ .Release.Namespace }}
+  → http://localhost:8080
+{{- end }}
+
+{{- if .Values.autoscaling.enabled }}
+📈 HPA 상태 확인:
+  kubectl get hpa {{ include "production-app.fullname" . }} -n {{ .Release.Namespace }}
+{{- end }}
+
+{{- if .Values.podDisruptionBudget.enabled }}
+🛡️  PDB 상태 확인:
+  kubectl get pdb {{ include "production-app.fullname" . }} -n {{ .Release.Namespace }}
+{{- end }}
+
+📋 Release 히스토리:
+  helm history {{ .Release.Name }} -n {{ .Release.Namespace }}

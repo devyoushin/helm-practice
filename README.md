@@ -2,7 +2,7 @@
 
 A hands-on repository for learning Helm on Kubernetes.
 - **Environment**: EKS / Helm 3.x
-- **App**: my-app (nginx 기반 커스텀 Chart)
+- **Charts**: my-app (기본 실습), production-app (실전 패턴)
 
 ---
 
@@ -15,7 +15,10 @@ A hands-on repository for learning Helm on Kubernetes.
    ├── Lifecycle     → lifecycle-guide.md
    ├── Hooks         → hooks-guide.md
    └── Dependencies  → dependencies-guide.md
-4. Hands-on        → first-chart-practice.md
+4. Hands-on
+   ├── Basic         → first-chart-practice.md
+   └── Production    → charts/production-app/ (HPA, PDB, Secret, Probe, 환경별 values)
+5. Tips            → tips-guide.md
 ```
 
 ---
@@ -45,20 +48,44 @@ A hands-on repository for learning Helm on Kubernetes.
 | File | Description |
 |------|-------------|
 | [first-chart-practice.md](./first-chart-practice.md) | 커스텀 Chart 처음부터 만들고 배포하는 실습 |
+| [charts/production-app/](./charts/production-app/) | HPA·PDB·Secret·Probe·환경별 values 포함 실전 Chart |
+
+### Tips
+| File | Description |
+|------|-------------|
+| [tips-guide.md](./tips-guide.md) | 실전 운영에서 유용한 팁 15가지 (Secret 관리, 무중단 배포, 디버깅 등) |
 
 ---
 
 ## Manifest Structure
 
 ```
-charts/my-app/
-├── Chart.yaml              # Chart 메타데이터 (이름, 버전, 설명)
-├── values.yaml             # 기본값 정의
-└── templates/
-    ├── _helpers.tpl        # 재사용 가능한 Named Template
-    ├── deployment.yaml     # Deployment 리소스
-    ├── service.yaml        # Service 리소스
-    └── ingress.yaml        # Ingress 리소스 (선택)
+charts/
+├── my-app/                     # 기본 실습 Chart
+│   ├── Chart.yaml
+│   ├── values.yaml
+│   └── templates/
+│       ├── _helpers.tpl
+│       ├── deployment.yaml
+│       ├── service.yaml
+│       └── ingress.yaml
+└── production-app/             # 실전 패턴 Chart
+    ├── Chart.yaml
+    ├── values.yaml             # 공통 기본값
+    ├── values-dev.yaml         # dev 오버라이드
+    ├── values-staging.yaml     # staging 오버라이드
+    ├── values-prod.yaml        # production 오버라이드
+    └── templates/
+        ├── _helpers.tpl
+        ├── deployment.yaml     # checksum 어노테이션, securityContext 포함
+        ├── service.yaml
+        ├── ingress.yaml
+        ├── configmap.yaml      # 앱 설정값 (비민감)
+        ├── secret.yaml         # 민감 정보 (b64enc)
+        ├── serviceaccount.yaml
+        ├── hpa.yaml            # HorizontalPodAutoscaler
+        ├── pdb.yaml            # PodDisruptionBudget
+        └── NOTES.txt           # 배포 후 안내 메시지
 ```
 
 ---

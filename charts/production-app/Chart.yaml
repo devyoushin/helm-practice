@@ -1,0 +1,15 @@
+apiVersion: v2
+name: production-app
+description: |
+  Production-ready Helm Chart 실습용.
+  HPA, PDB, ConfigMap, Secret, Probe, 환경별 values 분리 패턴을 포함합니다.
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - production
+  - nginx
+  - practice
+maintainers:
+  - name: devyoushin
+    email: devyoushin@gmail.com
