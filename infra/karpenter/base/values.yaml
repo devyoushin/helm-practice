@@ -1,0 +1,132 @@
+# karpenter upstream 기본값 (helm pull로 받은 원본)
+# 오버라이드: ../values.yaml, ../values-prod.yaml
+# 절대 이 파일 수정 금지
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Controller settings
+controller:
+  image:
+    repository: public.ecr.aws/karpenter/controller
+    tag: "1.1.1"
+    digest: ""
+  env: []
+  envFrom: []
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
+  extraVolumeMounts: []
+  sidecarContainer: []
+  sidecarVolumeMounts: []
+  metrics:
+    port: 8080
+  healthProbe:
+    port: 8081
+
+# Settings for the webhook
+webhook:
+  enabled: true
+  port: 8443
+  metrics:
+    port: 8001
+
+# Global settings for karpenter
+settings:
+  clusterName: ""
+  clusterEndpoint: ""
+  interruptionQueue: ""
+  featureGates:
+    spotToSpotConsolidation: false
+    nodeRepair: false
+
+# Number of replicas
+replicas: 2
+
+revisionHistoryLimit: 10
+
+strategy:
+  rollingUpdate:
+    maxUnavailable: 1
+  type: RollingUpdate
+
+podDisruptionBudget:
+  name: karpenter
+  maxUnavailable: 1
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+podAnnotations: {}
+podLabels: {}
+podSecurityContext:
+  fsGroup: 65532
+
+securityContext:
+  runAsUser: 65532
+  runAsGroup: 65532
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+priorityClassName: system-cluster-critical
+
+terminationGracePeriodSeconds: 10
+
+hostNetwork: false
+dnsPolicy: ClusterFirst
+dnsConfig: {}
+
+nodeSelector:
+  kubernetes.io/os: linux
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: karpenter.sh/nodepool
+              operator: DoesNotExist
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - topologyKey: kubernetes.io/hostname
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: karpenter
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: karpenter
+
+tolerations:
+  - key: CriticalAddonsOnly
+    operator: Exists
+
+extraVolumes: []
+
+serviceMonitor:
+  enabled: false
+  additionalLabels: {}
+  endpointConfig: {}
+
+logLevel: info
+logOutputPaths:
+  - stdout
+logErrorOutputPaths:
+  - stderr
+
+additionalClusterRoleRules: []

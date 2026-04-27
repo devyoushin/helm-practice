@@ -1,0 +1,377 @@
+# kube-prometheus-stack upstream 기본값 (helm pull로 받은 원본, 핵심 항목 발췌)
+# 전체 values: helm show values prometheus-community/kube-prometheus-stack --version 66.3.1
+# 오버라이드: ../values.yaml, ../values-prod.yaml
+# 절대 이 파일 수정 금지
+
+nameOverride: ""
+fullnameOverride: ""
+
+# ── 글로벌 ────────────────────────────────────────────────────
+global:
+  rbac:
+    create: true
+    pspEnabled: false
+    pspAnnotations: {}
+  imageRegistry: ""
+  imagePullSecrets: []
+
+# ── CRD 관리 ─────────────────────────────────────────────────
+crds:
+  enabled: false   # 기본 비활성화. CRD는 수동 관리 권장.
+  upgradeJobSpec: {}
+
+# ── Prometheus Operator ───────────────────────────────────────
+prometheusOperator:
+  enabled: true
+  replicaCount: 1
+  revisionHistoryLimit: 10
+
+  image:
+    registry: quay.io
+    repository: prometheus-operator/prometheus-operator
+    tag: v0.78.2
+    pullPolicy: IfNotPresent
+
+  resources: {}
+
+  serviceAccount:
+    create: true
+    name: ""
+
+  podLabels: {}
+  podAnnotations: {}
+
+  podSecurityContext: {}
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+
+  tolerations: []
+  affinity: {}
+  nodeSelector: {}
+
+  admissionWebhooks:
+    enabled: true
+    certManager:
+      enabled: false
+      rootCert:
+        duration: ""
+      admissionCert:
+        duration: ""
+
+  tls:
+    enabled: true
+    tlsMinVersion: TP13
+
+  namespaces: {}
+
+# ── Prometheus ────────────────────────────────────────────────
+prometheus:
+  enabled: true
+
+  serviceAccount:
+    create: true
+    name: ""
+    annotations: {}
+
+  prometheusSpec:
+    image:
+      registry: quay.io
+      repository: prometheus/prometheus
+      tag: v3.0.1
+      sha: ""
+
+    replicas: 1
+    shards: 1
+
+    logLevel: info
+    logFormat: logfmt
+
+    retention: 10d
+    retentionSize: ""
+
+    walCompression: true
+
+    paused: false
+
+    podAntiAffinity: ""
+    podAntiAffinityTopologyKey: kubernetes.io/hostname
+
+    tolerations: []
+    affinity: {}
+    topologySpreadConstraints: []
+    nodeSelector: {}
+
+    resources: {}
+
+    storageSpec: {}
+
+    ruleSelectorNilUsesHelmValues: true
+    serviceMonitorSelectorNilUsesHelmValues: true
+    podMonitorSelectorNilUsesHelmValues: true
+    probeSelectorNilUsesHelmValues: true
+    scrapeConfigSelectorNilUsesHelmValues: true
+
+    externalLabels: {}
+
+    enableRemoteWriteReceiver: false
+    enableFeatures: []
+
+    additionalScrapeConfigs: []
+    additionalAlertManagerConfigs: []
+    additionalAlertRelabelConfigs: []
+    remoteWrite: []
+    remoteRead: []
+
+    securityContext:
+      runAsGroup: 2000
+      runAsNonRoot: true
+      runAsUser: 1000
+      fsGroup: 2000
+      seccompProfile:
+        type: RuntimeDefault
+
+    podMetadata: {}
+    podMonitorSelector: {}
+    podMonitorNamespaceSelector: {}
+    serviceMonitorSelector: {}
+    serviceMonitorNamespaceSelector: {}
+    ruleSelector: {}
+    ruleNamespaceSelector: {}
+
+    priorityClassName: ""
+    minReadySeconds: 0
+    terminationMessagePath: /dev/termination-log
+    terminationMessagePolicy: File
+
+    portName: "http-web"
+    routePrefix: /
+
+    query: {}
+    queryLogFile: false
+
+    web: {}
+
+    tsdb:
+      outOfOrderTimeWindow: 0s
+
+# ── Alertmanager ─────────────────────────────────────────────
+alertmanager:
+  enabled: true
+
+  serviceAccount:
+    create: true
+    name: ""
+
+  alertmanagerSpec:
+    image:
+      registry: quay.io
+      repository: prometheus/alertmanager
+      tag: v0.27.0
+      sha: ""
+
+    replicas: 1
+
+    logLevel: info
+    logFormat: logfmt
+
+    retention: 120h
+
+    storage: {}
+
+    tolerations: []
+    affinity: {}
+    nodeSelector: {}
+    topologySpreadConstraints: []
+
+    resources: {}
+
+    securityContext:
+      runAsGroup: 2000
+      runAsNonRoot: true
+      runAsUser: 1000
+      fsGroup: 2000
+      seccompProfile:
+        type: RuntimeDefault
+
+    portName: "http-web"
+    routePrefix: /
+
+    paused: false
+
+  config:
+    global:
+      resolve_timeout: 5m
+    inhibit_rules:
+      - source_matchers:
+          - 'severity = critical'
+        target_matchers:
+          - 'severity =~ warning|info'
+        equal:
+          - 'namespace'
+          - 'alertname'
+      - source_matchers:
+          - 'severity = warning'
+        target_matchers:
+          - 'severity = info'
+        equal:
+          - 'namespace'
+          - 'alertname'
+      - source_matchers:
+          - 'alertname = InfoInhibitor'
+        target_matchers:
+          - 'severity = info'
+        equal:
+          - 'namespace'
+      - target_matchers:
+          - 'alertname = InfoInhibitor'
+    route:
+      group_by: ['namespace']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: 'null'
+      routes:
+        - receiver: 'null'
+          matchers:
+            - alertname = "Watchdog"
+    receivers:
+      - name: 'null'
+    templates:
+      - '/etc/alertmanager/config/*.tmpl'
+
+# ── Grafana ───────────────────────────────────────────────────
+grafana:
+  enabled: true
+  namespaceOverride: ""
+  defaultDashboardsEnabled: true
+  defaultDashboardsTimezone: utc
+  adminPassword: prom-operator
+
+  image:
+    registry: docker.io
+    repository: grafana/grafana
+    tag: "11.4.0"
+
+  ingress:
+    enabled: false
+
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+
+  serviceMonitor:
+    enabled: true
+
+# ── kube-state-metrics ───────────────────────────────────────
+kubeStateMetrics:
+  enabled: true
+
+kube-state-metrics:
+  namespaceOverride: ""
+  rbac:
+    create: true
+  releaseLabel: true
+  prometheus:
+    monitor:
+      enabled: true
+  selfMonitor:
+    enabled: false
+
+# ── node-exporter ────────────────────────────────────────────
+nodeExporter:
+  enabled: true
+  operatingSystems:
+    linux:
+      enabled: true
+    darwin:
+      enabled: false
+
+prometheus-node-exporter:
+  namespaceOverride: ""
+  podLabels:
+    jobLabel: node-exporter
+  releaseLabel: true
+  extraArgs:
+    - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/.+)($|/)
+    - --collector.filesystem.fs-types-exclude=^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs)$
+  service:
+    portName: http-metrics
+  prometheus:
+    monitor:
+      enabled: true
+      jobLabel: jobLabel
+  rbac:
+    pspEnabled: false
+
+# ── 기본 알림 규칙 ───────────────────────────────────────────
+defaultRules:
+  create: true
+  rules:
+    alertmanager: true
+    etcd: true
+    configReloaders: true
+    general: true
+    k8sContainerCpuUsageSecondsTotal: true
+    k8sContainerMemoryCache: true
+    k8sContainerMemoryRss: true
+    k8sContainerMemorySwap: true
+    k8sContainerResource: true
+    k8sPodOwner: true
+    kubeApiserverAvailability: true
+    kubeApiserverBurnrate: true
+    kubeApiserverHistogram: true
+    kubeApiserverSlos: true
+    kubeControllerManager: true
+    kubelet: true
+    kubeProxy: true
+    kubePrometheusGeneral: true
+    kubePrometheusNodeRecording: true
+    kubernetesAbsent: true
+    kubernetesApps: true
+    kubernetesResources: true
+    kubernetesStorage: true
+    kubernetesSystem: true
+    kubeSchedulerAlerting: true
+    kubeSchedulerRecording: true
+    kubeStateMetrics: true
+    network: true
+    node: true
+    nodeExporterAlerting: true
+    nodeExporterRecording: true
+    prometheus: true
+    prometheusOperator: true
+    windows: false
+
+  additionalRuleLabels: {}
+  additionalRuleGroupLabels: {}
+
+  appNamespacesTarget: ".*"
+  runbookUrl: "https://runbooks.prometheus-operator.dev/runbooks"
+  disabled: {}
+
+# ── 컴포넌트 모니터링 ────────────────────────────────────────
+kubeApiServer:
+  enabled: true
+kubeControllerManager:
+  enabled: true
+kubeScheduler:
+  enabled: true
+kubeProxy:
+  enabled: true
+kubeEtcd:
+  enabled: true
+kubelet:
+  enabled: true
+coreDns:
+  enabled: true
+kubeDns:
+  enabled: false
+kubeStateMetrics:
+  enabled: true

@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "webhook.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cert-manager.labels" . | nindent 4 }}
+    app.kubernetes.io/component: webhook
+spec:
+  replicas: {{ .Values.webhook.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "webhook.selectorLabels" . | nindent 6 }}
+  {{- with .Values.webhook.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "webhook.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "webhook.fullname" . }}
+      securityContext:
+        {{- toYaml .Values.webhook.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}-webhook
+          {{- if .Values.webhook.image.digest }}
+          image: "{{ .Values.webhook.image.registry }}/{{ .Values.webhook.image.repository }}@{{ .Values.webhook.image.digest }}"
+          {{- else }}
+          image: "{{ .Values.webhook.image.registry }}/{{ .Values.webhook.image.repository }}:{{ default .Chart.AppVersion .Values.webhook.image.tag }}"
+          {{- end }}
+          imagePullPolicy: {{ .Values.webhook.image.pullPolicy }}
+          args:
+            - --v=2
+            - --secure-port={{ .Values.webhook.securePort }}
+            - --dynamic-serving-ca-secret-namespace=$(POD_NAMESPACE)
+            - --dynamic-serving-ca-secret-name={{ include "cert-manager.fullname" . }}-webhook-ca
+            - --dynamic-serving-dns-names={{ include "webhook.fullname" . }},{{ include "webhook.fullname" . }}.$(POD_NAMESPACE),{{ include "webhook.fullname" . }}.$(POD_NAMESPACE).svc
+            {{- with .Values.webhook.extraArgs }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: https
+              protocol: TCP
+              containerPort: {{ .Values.webhook.securePort }}
+            - name: healthcheck
+              protocol: TCP
+              containerPort: 6080
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: healthcheck
+              scheme: HTTP
+            initialDelaySeconds: {{ .Values.webhook.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.webhook.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.webhook.livenessProbe.timeoutSeconds }}
+            successThreshold: {{ .Values.webhook.livenessProbe.successThreshold }}
+            failureThreshold: {{ .Values.webhook.livenessProbe.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: healthcheck
+              scheme: HTTP
+            initialDelaySeconds: {{ .Values.webhook.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.webhook.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.webhook.readinessProbe.timeoutSeconds }}
+            successThreshold: {{ .Values.webhook.readinessProbe.successThreshold }}
+            failureThreshold: {{ .Values.webhook.readinessProbe.failureThreshold }}
+          securityContext:
+            {{- toYaml .Values.webhook.securityContext | nindent 12 }}
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          {{- with .Values.webhook.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.webhook.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.webhook.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.webhook.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

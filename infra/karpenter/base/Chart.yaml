@@ -1,0 +1,23 @@
+# helm pull oci://public.ecr.aws/karpenter/karpenter --version 1.1.1 --untar
+# 이 파일은 upstream 원본. 절대 수동 편집 금지.
+# 버전 변경 시: update-charts.sh karpenter 실행
+
+apiVersion: v2
+name: karpenter
+description: A Helm chart for Karpenter, an open-source node provisioning project built for Kubernetes.
+type: application
+version: 1.1.1
+appVersion: 1.1.1
+keywords:
+  - cluster
+  - node
+  - provisioning
+  - autoscaling
+home: https://karpenter.sh
+sources:
+  - https://github.com/aws/karpenter-provider-aws
+maintainers:
+  - name: AWS Karpenter Team
+    url: https://github.com/aws/karpenter-provider-aws
+annotations:
+  artifacthub.io/license: Apache-2.0

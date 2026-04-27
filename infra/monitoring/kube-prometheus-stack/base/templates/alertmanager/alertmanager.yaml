@@ -1,0 +1,55 @@
+{{- if .Values.alertmanager.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: Alertmanager
+metadata:
+  name: {{ include "kube-prometheus-stack.fullname" . }}-alertmanager
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kube-prometheus-stack.labels" . | nindent 4 }}
+    app: kube-prometheus-stack-alertmanager
+spec:
+  replicas: {{ .Values.alertmanager.alertmanagerSpec.replicas }}
+
+  image:
+    registry: {{ .Values.alertmanager.alertmanagerSpec.image.registry }}
+    repository: {{ .Values.alertmanager.alertmanagerSpec.image.repository }}
+    tag: {{ .Values.alertmanager.alertmanagerSpec.image.tag }}
+
+  serviceAccountName: {{ include "kube-prometheus-stack.alertmanager.serviceAccountName" . }}
+
+  logLevel: {{ .Values.alertmanager.alertmanagerSpec.logLevel }}
+  logFormat: {{ .Values.alertmanager.alertmanagerSpec.logFormat }}
+
+  retention: {{ .Values.alertmanager.alertmanagerSpec.retention }}
+
+  # Alertmanager 설정은 Secret으로 관리 (resources/alertmanager-config.yaml)
+  # Secret 이름: alertmanager-<release-name>-kube-prometheus-stack-alertmanager
+  configSecret: ""
+
+  securityContext:
+    {{- toYaml .Values.alertmanager.alertmanagerSpec.securityContext | nindent 4 }}
+
+  {{- with .Values.alertmanager.alertmanagerSpec.storage }}
+  storage:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  {{- with .Values.alertmanager.alertmanagerSpec.resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  {{- with .Values.alertmanager.alertmanagerSpec.tolerations }}
+  tolerations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  {{- with .Values.alertmanager.alertmanagerSpec.affinity }}
+  affinity:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  portName: {{ .Values.alertmanager.alertmanagerSpec.portName }}
+  routePrefix: {{ .Values.alertmanager.alertmanagerSpec.routePrefix }}
+  paused: {{ .Values.alertmanager.alertmanagerSpec.paused }}
+{{- end }}

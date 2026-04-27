@@ -1,0 +1,246 @@
+# cert-manager upstream 기본값 (helm pull로 받은 원본)
+# 오버라이드: ../values.yaml
+# 절대 이 파일 수정 금지
+
+global:
+  imagePullSecrets: []
+  commonLabels: {}
+  leaderElection:
+    namespace: kube-system
+    leaseDuration: ""
+    renewDeadline: ""
+    retryPeriod: ""
+  revisionHistoryLimit: ~
+
+crds:
+  enabled: false
+  keep: true
+
+replicaCount: 1
+
+strategy: {}
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+image:
+  registry: quay.io
+  repository: jetstack/cert-manager-controller
+  tag: ""
+  digest: ""
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+  labels: {}
+  automountServiceAccountToken: true
+
+automountServiceAccountToken: true
+
+volumes: []
+volumeMounts: []
+
+enableCertificateOwnerRef: false
+enableGatewayAPI: false
+
+dns01RecursiveNameserversOnly: false
+dns01RecursiveNameservers: ""
+
+disableAutoApproval: false
+approveSignerNames: []
+
+podLabels: {}
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+containerSecurityContext: {}
+
+nodeSelector:
+  kubernetes.io/os: linux
+
+affinity: {}
+tolerations: []
+topologySpreadConstraints: []
+
+resources: {}
+
+extraArgs: []
+extraEnv: []
+
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 15
+  successThreshold: 1
+  failureThreshold: 8
+
+# ── Webhook ──────────────────────────────────────────────────
+webhook:
+  replicaCount: 1
+  timeoutSeconds: 30
+  config: ~
+
+  strategy: {}
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+
+  validatingWebhookConfigurationAnnotations: ~
+  mutatingWebhookConfigurationAnnotations: ~
+
+  validatingWebhookConfiguration:
+    namespaceSelector:
+      matchExpressions:
+        - key: "cert-manager.io/disable-validation"
+          operator: "NotIn"
+          values: ["true"]
+
+  mutatingWebhookConfiguration:
+    namespaceSelector: {}
+
+  extraArgs: []
+  extraEnv: []
+  resources: {}
+
+  image:
+    registry: quay.io
+    repository: jetstack/cert-manager-webhook
+    tag: ""
+    digest: ""
+    pullPolicy: IfNotPresent
+
+  serviceAccount:
+    create: true
+    name: ""
+    annotations: {}
+    labels: {}
+    automountServiceAccountToken: true
+
+  securePort: 10250
+  hostNetwork: false
+  serviceType: ClusterIP
+  url: {}
+
+  nodeSelector:
+    kubernetes.io/os: linux
+  affinity: {}
+  tolerations: []
+
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+
+  livenessProbe:
+    failureThreshold: 3
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    successThreshold: 1
+    timeoutSeconds: 1
+
+  readinessProbe:
+    failureThreshold: 3
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    successThreshold: 1
+    timeoutSeconds: 1
+
+# ── cainjector ───────────────────────────────────────────────
+cainjector:
+  enabled: true
+  replicaCount: 1
+
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+
+  extraArgs: []
+  extraEnv: []
+  resources: {}
+
+  image:
+    registry: quay.io
+    repository: jetstack/cert-manager-cainjector
+    tag: ""
+    digest: ""
+    pullPolicy: IfNotPresent
+
+  serviceAccount:
+    create: true
+    name: ""
+    annotations: {}
+    labels: {}
+    automountServiceAccountToken: true
+
+  nodeSelector:
+    kubernetes.io/os: linux
+  affinity: {}
+  tolerations: []
+
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+
+# ── acmesolver ───────────────────────────────────────────────
+acmesolver:
+  image:
+    registry: quay.io
+    repository: jetstack/cert-manager-acmesolver
+    tag: ""
+    digest: ""
+
+# ── Prometheus ───────────────────────────────────────────────
+prometheus:
+  enabled: true
+  servicemonitor:
+    enabled: false
+    prometheusInstance: default
+    targetPort: 9402
+    path: /metrics
+    interval: 60s
+    scrapeTimeout: 30s
+    labels: {}
+    annotations: {}
+    honorLabels: false
+    endpointAdditionalProperties: {}
+
+  podmonitor:
+    enabled: false
+    prometheusInstance: default
+    path: /metrics
+    interval: 60s
+    scrapeTimeout: 30s
+    labels: {}
+    annotations: {}
+    honorLabels: false
+    endpointAdditionalProperties: {}

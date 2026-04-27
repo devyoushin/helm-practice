@@ -14,20 +14,15 @@ environments:
 
 ---
 
+# ── 레포는 base/ 없는 차트(istio, ingress-nginx, external-dns)에만 사용 ──
+# karpenter / cert-manager / kube-prometheus-stack 은 base/ 로컬 경로 참조
 repositories:
-  - name: jetstack
-    url: https://charts.jetstack.io
   - name: ingress-nginx
     url: https://kubernetes.github.io/ingress-nginx
   - name: external-dns
     url: https://kubernetes-sigs.github.io/external-dns
-  - name: karpenter
-    url: oci://public.ecr.aws/karpenter
-    oci: true
   - name: istio
     url: https://istio-release.storage.googleapis.com/charts
-  - name: prometheus-community
-    url: https://prometheus-community.github.io/helm-charts
 
 # 전역 기본값
 helmDefaults:
@@ -44,15 +39,16 @@ releases:
   - name: cert-manager
     namespace: cert-manager
     createNamespace: true
-    chart: jetstack/cert-manager
-    version: "1.16.2"
+    # helm pull로 받아온 로컬 차트 (update-charts.sh cert-manager 로 업데이트)
+    chart: ./cert-manager/base
     labels:
       layer: "0"
       app: cert-manager
     values:
-      - cert-manager/values.yaml
+      - cert-manager/base/values.yaml    # upstream 기본값
+      - cert-manager/values.yaml         # 우리 오버라이드
     set:
-      - name: installCRDs
+      - name: crds.enabled
         value: true
 
   # ──────────────────────────────────────────────
@@ -89,16 +85,17 @@ releases:
   # ──────────────────────────────────────────────
   - name: karpenter
     namespace: kube-system
-    chart: karpenter/karpenter
-    version: "1.1.1"
+    # helm pull로 받아온 로컬 차트 (update-charts.sh karpenter 로 업데이트)
+    chart: ./karpenter/base
     labels:
       layer: "3"
       app: karpenter
     values:
-      - karpenter/values.yaml
+      - karpenter/base/values.yaml       # upstream 기본값
+      - karpenter/values.yaml            # 우리 오버라이드
       - karpenter/values-{{ .Environment.Name }}.yaml
     needs:
-      - cert-manager/cert-manager   # karpenter webhook이 cert-manager 필요
+      - cert-manager/cert-manager
 
   # ──────────────────────────────────────────────
   # Layer 4: istio (순서 중요: base → istiod → gateway)
@@ -142,15 +139,15 @@ releases:
   - name: kube-prometheus-stack
     namespace: monitoring
     createNamespace: true
-    chart: prometheus-community/kube-prometheus-stack
-    version: "66.3.1"
+    # helm pull로 받아온 로컬 차트 (update-charts.sh monitoring 로 업데이트)
+    chart: ./monitoring/kube-prometheus-stack/base
     labels:
       layer: "5"
       app: monitoring
     values:
-      - monitoring/kube-prometheus-stack/values.yaml
+      - monitoring/kube-prometheus-stack/base/values.yaml    # upstream 기본값
+      - monitoring/kube-prometheus-stack/values.yaml         # 우리 오버라이드
       - monitoring/kube-prometheus-stack/values-{{ .Environment.Name }}.yaml
-    # CRD는 별도로 관리 (차트 내 CRD 설치 비활성화)
     set:
       - name: prometheusOperator.admissionWebhooks.certManager.enabled
         value: true

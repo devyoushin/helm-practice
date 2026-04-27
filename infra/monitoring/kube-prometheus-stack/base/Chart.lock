@@ -1,0 +1,18 @@
+# helm dependency update ./base 실행 후 생성되는 파일
+# 의존성 차트 버전 고정
+
+dependencies:
+- name: kube-state-metrics
+  repository: https://prometheus-community.github.io/helm-charts
+  version: 5.27.0
+- name: prometheus-node-exporter
+  repository: https://prometheus-community.github.io/helm-charts
+  version: 4.42.0
+- name: grafana
+  repository: https://grafana.github.io/helm-charts
+  version: 8.8.4
+- name: prometheus-windows-exporter
+  repository: https://prometheus-community.github.io/helm-charts
+  version: 0.7.1
+digest: sha256:abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890
+generated: "2025-01-10T00:00:00.000000000Z"

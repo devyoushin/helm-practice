@@ -1,0 +1,106 @@
+{{- if .Values.prometheus.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: {{ include "kube-prometheus-stack.fullname" . }}-prometheus
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kube-prometheus-stack.labels" . | nindent 4 }}
+    app: kube-prometheus-stack-prometheus
+spec:
+  replicas: {{ .Values.prometheus.prometheusSpec.replicas }}
+  shards: {{ .Values.prometheus.prometheusSpec.shards }}
+
+  image:
+    registry: {{ .Values.prometheus.prometheusSpec.image.registry }}
+    repository: {{ .Values.prometheus.prometheusSpec.image.repository }}
+    tag: {{ .Values.prometheus.prometheusSpec.image.tag }}
+
+  serviceAccountName: {{ include "kube-prometheus-stack.prometheus.serviceAccountName" . }}
+
+  logLevel: {{ .Values.prometheus.prometheusSpec.logLevel }}
+  logFormat: {{ .Values.prometheus.prometheusSpec.logFormat }}
+
+  retention: {{ .Values.prometheus.prometheusSpec.retention }}
+  {{- if .Values.prometheus.prometheusSpec.retentionSize }}
+  retentionSize: {{ .Values.prometheus.prometheusSpec.retentionSize }}
+  {{- end }}
+
+  {{- if .Values.prometheus.prometheusSpec.walCompression }}
+  walCompression: {{ .Values.prometheus.prometheusSpec.walCompression }}
+  {{- end }}
+
+  {{- with .Values.prometheus.prometheusSpec.externalLabels }}
+  externalLabels:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  {{- with .Values.prometheus.prometheusSpec.remoteWrite }}
+  remoteWrite:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  {{- if .Values.prometheus.prometheusSpec.ruleSelectorNilUsesHelmValues }}
+  ruleSelector:
+    matchLabels:
+      release: {{ .Release.Name }}
+  {{- else }}
+  ruleSelector: {}
+  {{- end }}
+  ruleNamespaceSelector: {}
+
+  {{- if .Values.prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues }}
+  serviceMonitorSelector:
+    matchLabels:
+      release: {{ .Release.Name }}
+  {{- else }}
+  serviceMonitorSelector: {}
+  {{- end }}
+  serviceMonitorNamespaceSelector: {}
+
+  {{- if .Values.prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues }}
+  podMonitorSelector:
+    matchLabels:
+      release: {{ .Release.Name }}
+  {{- else }}
+  podMonitorSelector: {}
+  {{- end }}
+  podMonitorNamespaceSelector: {}
+
+  securityContext:
+    {{- toYaml .Values.prometheus.prometheusSpec.securityContext | nindent 4 }}
+
+  {{- with .Values.prometheus.prometheusSpec.resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  {{- with .Values.prometheus.prometheusSpec.storageSpec }}
+  storage:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  {{- with .Values.prometheus.prometheusSpec.tolerations }}
+  tolerations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  {{- with .Values.prometheus.prometheusSpec.affinity }}
+  affinity:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  {{- with .Values.prometheus.prometheusSpec.topologySpreadConstraints }}
+  topologySpreadConstraints:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  {{- with .Values.prometheus.prometheusSpec.nodeSelector }}
+  nodeSelector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+  portName: {{ .Values.prometheus.prometheusSpec.portName }}
+  routePrefix: {{ .Values.prometheus.prometheusSpec.routePrefix }}
+  paused: {{ .Values.prometheus.prometheusSpec.paused }}
+{{- end }}
