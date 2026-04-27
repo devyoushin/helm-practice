@@ -1,38 +1,50 @@
 # karpenter/values.yaml
-# 차트: oci://public.ecr.aws/karpenter/karpenter
-# 버전: 1.1.x
-# 공식 문서: https://karpenter.sh/docs/
+# Chart: oci://public.ecr.aws/karpenter/karpenter
+# Version: 1.1.1
+# Docs: https://karpenter.sh/docs/
 
-# ── 필수 설정 (EKS 환경변수로 주입 권장) ──────────────────────────
+# ── 필수: EKS 클러스터 정보 ────────────────────────────────────
+# 실제 배포 시 helmfile environments 또는 --set 으로 주입
 settings:
-  # EKS 클러스터명 (helmfile set 또는 --set으로 주입)
-  clusterName: ""          # --set settings.clusterName=my-cluster
-  clusterEndpoint: ""      # --set settings.clusterEndpoint=https://...
+  clusterName: ""           # 예) my-eks-cluster
+  clusterEndpoint: ""       # 예) https://XXXX.gr7.ap-northeast-2.eks.amazonaws.com
+  interruptionQueue: ""     # SQS 큐 이름 (Spot 인터럽션 처리용)
+                            # 예) Karpenter-my-eks-cluster
 
-  # Interruption handling (Spot 인스턴스 중단 처리)
-  interruptionQueue: ""    # SQS 큐 이름 (Spot 사용 시 필수)
-
-# ── ServiceAccount (IRSA) ────────────────────────────────────────
+# ── ServiceAccount (EKS Pod Identity 또는 IRSA) ────────────────
 serviceAccount:
   create: true
   name: karpenter
   annotations:
-    # IRSA 또는 EKS Pod Identity ARN으로 대체
-    eks.amazonaws.com/role-arn: ""  # --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=arn:...
+    # IRSA 방식 (구형)
+    # eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/KarpenterControllerRole-CLUSTER_NAME
+    #
+    # EKS Pod Identity 방식 (신형, 권장)
+    # eks.amazonaws.com/role-arn 대신 EKS콘솔에서 Pod Identity Association 설정
 
-# ── Controller 리소스 ────────────────────────────────────────────
+# ── Controller ────────────────────────────────────────────────
 controller:
+  image:
+    repository: public.ecr.aws/karpenter/controller
+    tag: "1.1.1"
   resources:
     requests:
       cpu: 100m
       memory: 512Mi
     limits:
       memory: 1Gi
+  env: []
+  # 예) 로그 레벨 오버라이드
+  # - name: LOG_LEVEL
+  #   value: debug
 
-# ── 고가용성 설정 ─────────────────────────────────────────────────
+# ── 고가용성 ──────────────────────────────────────────────────
 replicas: 2
 
-# karpenter 자신은 on-demand 노드에서 실행
+podDisruptionBudget:
+  minAvailable: 1
+
+# Karpenter 자신은 Karpenter가 관리하는 노드에서 실행되면 안 됨
 affinity:
   nodeAffinity:
     requiredDuringSchedulingIgnoredDuringExecution:
@@ -53,9 +65,12 @@ tolerations:
   - key: node-role.kubernetes.io/control-plane
     effect: NoSchedule
 
-# ── 로깅 ─────────────────────────────────────────────────────────
-logLevel: info
-logOutputPaths:
-  - stdout
-logErrorOutputPaths:
-  - stderr
+# ── 로깅 ──────────────────────────────────────────────────────
+logLevel: info    # debug | info | error
+logOutputPaths: ["stdout"]
+logErrorOutputPaths: ["stderr"]
+
+# ── 메트릭 ────────────────────────────────────────────────────
+# Prometheus ServiceMonitor는 resources/ 에서 별도 관리
+serviceMonitor:
+  enabled: false   # kube-prometheus-stack 설치 후 resources/에서 활성화

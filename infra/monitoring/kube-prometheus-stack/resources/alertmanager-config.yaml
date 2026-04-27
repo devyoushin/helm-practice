@@ -1,0 +1,149 @@
+# monitoring/kube-prometheus-stack/resources/alertmanager-config.yaml
+# CRD: AlertmanagerConfig (monitoring.coreos.com/v1alpha1)
+#
+# 주의: AlertmanagerConfig는 네임스페이스 범위 리소스
+# 전체 Alertmanager 설정은 kube-prometheus-stack values.yaml의 alertmanager.config 에서,
+# 네임스페이스별 라우팅은 이 AlertmanagerConfig CRD로 추가 가능
+#
+# 실무에서는 주로 두 가지 방법으로 알림 설정을 관리:
+# 방법 A: values.yaml의 alertmanager.config (전체 설정, 인프라팀 관리)
+# 방법 B: AlertmanagerConfig CRD (팀별 추가 라우팅, 각 팀이 자신의 NS에서 관리)
+#
+# 아래는 방법 B 예시
+
+---
+# 방법 A: Alertmanager Secret 직접 관리 (kube-prometheus-stack이 생성하지 않고 직접 관리)
+# Secret은 암호화된 값 사용 (Sealed Secrets 또는 External Secrets Operator)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: alertmanager-kube-prometheus-stack
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+type: Opaque
+stringData:
+  # 실제 배포 시 External Secrets Operator로 AWS Secrets Manager에서 주입
+  # 아래는 구조 참고용 예시 (실제 값은 빈 문자열로 두고 ESO로 주입)
+  alertmanager.yaml: |
+    global:
+      resolve_timeout: 5m
+      # Slack webhook URL (ESO로 주입 권장)
+      slack_api_url: ""
+
+    # 알림 템플릿 (커스텀 메시지 포맷)
+    templates:
+      - /etc/alertmanager/config/*.tmpl
+
+    route:
+      receiver: "default-receiver"
+      group_by: ["alertname", "cluster", "namespace", "severity"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+
+      routes:
+        # Critical → PagerDuty + Slack
+        - receiver: "pagerduty-critical"
+          matchers:
+            - severity = "critical"
+          group_wait: 10s
+          repeat_interval: 1h
+          continue: true   # continue: true → 다음 라우트도 매칭
+
+        - receiver: "slack-critical"
+          matchers:
+            - severity = "critical"
+
+        # Warning → Slack만
+        - receiver: "slack-warning"
+          matchers:
+            - severity = "warning"
+
+        # 특정 팀으로 라우팅 (team 레이블 기반)
+        - receiver: "slack-team-backend"
+          matchers:
+            - team = "backend"
+
+        - receiver: "slack-team-infra"
+          matchers:
+            - team = "infra"
+
+    receivers:
+      - name: "default-receiver"
+        slack_configs:
+          - channel: "#alerts-all"
+            send_resolved: true
+            title: |
+              [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}]
+              {{ .CommonLabels.alertname }}
+            text: |
+              {{ range .Alerts }}
+              *Alert:* {{ .Labels.alertname }} - {{ .Labels.severity }}
+              *Namespace:* {{ .Labels.namespace }}
+              *Description:* {{ .Annotations.description }}
+              *Runbook:* {{ .Annotations.runbook }}
+              {{ end }}
+
+      - name: "pagerduty-critical"
+        pagerduty_configs:
+          - routing_key: ""   # ESO로 주입
+            description: "{{ .CommonLabels.alertname }}: {{ .CommonAnnotations.description }}"
+            severity: "{{ .CommonLabels.severity }}"
+            client: "Prometheus"
+            details:
+              cluster: "{{ .CommonLabels.cluster }}"
+              namespace: "{{ .CommonLabels.namespace }}"
+
+      - name: "slack-critical"
+        slack_configs:
+          - channel: "#alerts-critical"
+            send_resolved: true
+            color: |
+              {{ if eq .Status "firing" }}danger{{ else }}good{{ end }}
+            title: |
+              :red_circle: [CRITICAL] {{ .CommonLabels.alertname }}
+            text: |
+              {{ range .Alerts }}
+              *{{ .Labels.alertname }}* ({{ .Labels.namespace }})
+              {{ .Annotations.description }}
+              {{ if .Annotations.runbook }}<{{ .Annotations.runbook }}|Runbook>{{ end }}
+              {{ end }}
+
+      - name: "slack-warning"
+        slack_configs:
+          - channel: "#alerts-warning"
+            send_resolved: true
+            color: "warning"
+            title: |
+              :warning: [WARNING] {{ .CommonLabels.alertname }}
+            text: |
+              {{ range .Alerts }}
+              *{{ .Labels.alertname }}* ({{ .Labels.namespace }})
+              {{ .Annotations.description }}
+              {{ end }}
+
+      - name: "slack-team-backend"
+        slack_configs:
+          - channel: "#team-backend-alerts"
+            send_resolved: true
+
+      - name: "slack-team-infra"
+        slack_configs:
+          - channel: "#team-infra-alerts"
+            send_resolved: true
+
+    # 억제 규칙: Critical 발생 시 같은 대상의 Warning 억제
+    inhibit_rules:
+      - source_matchers:
+          - severity = "critical"
+        target_matchers:
+          - severity = "warning"
+        equal: ["alertname", "cluster", "namespace"]
+
+      # 노드 전체 다운 시 노드 위의 파드 알림 억제
+      - source_matchers:
+          - alertname = "NodeNotReady"
+        target_matchers:
+          - alertname =~ "Pod.*|Container.*|Deployment.*"
+        equal: ["node"]

@@ -1,0 +1,255 @@
+# monitoring/kube-prometheus-stack/resources/prometheus-rules-kubernetes.yaml
+# CRD: PrometheusRule (monitoring.coreos.com/v1)
+# 역할: Kubernetes 클러스터 수준 알림 규칙
+#
+# 적용: kubectl apply -f infra/monitoring/kube-prometheus-stack/resources/
+# 전제: kube-prometheus-stack이 설치되어 있어야 함
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: kubernetes-cluster-rules
+  namespace: monitoring
+  labels:
+    # kube-prometheus-stack의 Prometheus가 이 레이블로 Rule을 발견
+    release: kube-prometheus-stack
+    app: kube-prometheus-stack
+spec:
+  groups:
+    # ── 노드 ──────────────────────────────────────────────────
+    - name: node.rules
+      interval: 1m
+      rules:
+        - alert: NodeNotReady
+          expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Node {{ $labels.node }} is not ready"
+            description: "Node {{ $labels.node }}가 5분 이상 NotReady 상태입니다."
+            runbook: "https://runbooks.example.com/node-not-ready"
+
+        - alert: NodeMemoryPressure
+          expr: kube_node_status_condition{condition="MemoryPressure",status="true"} == 1
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node {{ $labels.node }} has memory pressure"
+            description: "Node {{ $labels.node }}에 메모리 부족 상태가 감지됐습니다."
+
+        - alert: NodeDiskPressure
+          expr: kube_node_status_condition{condition="DiskPressure",status="true"} == 1
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node {{ $labels.node }} has disk pressure"
+            description: "Node {{ $labels.node }}에 디스크 부족 상태가 감지됐습니다."
+
+        - alert: NodeHighCPU
+          expr: |
+            (1 - avg by(node) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) * 100 > 90
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node {{ $labels.node }} CPU usage is high"
+            description: "Node {{ $labels.node }} CPU 사용률이 {{ $value | printf \"%.1f\" }}% 입니다 (10분 지속)."
+
+        - alert: NodeHighMemory
+          expr: |
+            (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 90
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node {{ $labels.node }} memory usage is high"
+            description: "Node {{ $labels.node }} 메모리 사용률이 {{ $value | printf \"%.1f\" }}% 입니다 (10분 지속)."
+
+        - alert: NodeRootFilesystemAlmostFull
+          expr: |
+            (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 15
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node {{ $labels.instance }} root filesystem is almost full"
+            description: "Node {{ $labels.instance }} 루트 파일시스템 잔여 공간이 {{ $value | printf \"%.1f\" }}% 입니다."
+
+        - alert: NodeRootFilesystemFull
+          expr: |
+            (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 5
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Node {{ $labels.instance }} root filesystem is full"
+            description: "Node {{ $labels.instance }} 루트 파일시스템이 거의 가득 찼습니다 (잔여 {{ $value | printf \"%.1f\" }}%)."
+
+    # ── 파드 / 워크로드 ───────────────────────────────────────
+    - name: pod.rules
+      interval: 1m
+      rules:
+        - alert: PodCrashLooping
+          expr: |
+            rate(kube_pod_container_status_restarts_total[15m]) * 60 * 15 > 3
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash looping"
+            description: "컨테이너 {{ $labels.container }}이 15분 동안 {{ $value | printf \"%.0f\" }}회 재시작됐습니다."
+            runbook: "https://runbooks.example.com/pod-crash-loop"
+
+        - alert: PodOOMKilled
+          expr: |
+            kube_pod_container_status_last_terminated_reason{reason="OOMKilled"} == 1
+          for: 0m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} was OOMKilled"
+            description: "컨테이너 {{ $labels.container }}이 메모리 부족으로 종료됐습니다. Memory limit을 늘리세요."
+
+        - alert: PodNotRunning
+          expr: |
+            kube_pod_status_phase{phase=~"Pending|Failed|Unknown"} > 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is not running"
+            description: "파드가 15분 이상 {{ $labels.phase }} 상태입니다."
+
+        - alert: ContainerHighCPU
+          expr: |
+            (sum by(namespace, pod, container) (
+              rate(container_cpu_usage_seconds_total{container!=""}[5m])
+            ) / sum by(namespace, pod, container) (
+              kube_pod_container_resource_limits{resource="cpu"}
+            )) * 100 > 90
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Container {{ $labels.namespace }}/{{ $labels.pod }}/{{ $labels.container }} CPU is high"
+            description: "CPU limit 대비 {{ $value | printf \"%.1f\" }}% 사용 중. Throttling 발생 가능."
+
+        - alert: ContainerHighMemory
+          expr: |
+            (container_memory_working_set_bytes{container!=""} /
+            kube_pod_container_resource_limits{resource="memory"}) * 100 > 90
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Container {{ $labels.namespace }}/{{ $labels.pod }}/{{ $labels.container }} memory is high"
+            description: "Memory limit 대비 {{ $value | printf \"%.1f\" }}% 사용 중. OOMKill 위험."
+
+    # ── Deployment / StatefulSet ──────────────────────────────
+    - name: deployment.rules
+      interval: 1m
+      rules:
+        - alert: DeploymentUnavailable
+          expr: |
+            kube_deployment_status_replicas_available == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Deployment {{ $labels.namespace }}/{{ $labels.deployment }} has no available replicas"
+            description: "{{ $labels.deployment }} Deployment에 사용 가능한 파드가 없습니다."
+            runbook: "https://runbooks.example.com/deployment-unavailable"
+
+        - alert: DeploymentReplicasMismatch
+          expr: |
+            kube_deployment_spec_replicas != kube_deployment_status_replicas_available
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Deployment {{ $labels.namespace }}/{{ $labels.deployment }} replicas mismatch"
+            description: "원하는 레플리카 수와 실제 사용 가능한 레플리카 수가 15분 이상 일치하지 않습니다."
+
+        - alert: StatefulSetNotReady
+          expr: |
+            kube_statefulset_status_replicas_ready != kube_statefulset_status_replicas
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "StatefulSet {{ $labels.namespace }}/{{ $labels.statefulset }} is not fully ready"
+
+        - alert: HpaMaxReplicas
+          expr: |
+            kube_horizontalpodautoscaler_status_current_replicas ==
+            kube_horizontalpodautoscaler_spec_max_replicas
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "HPA {{ $labels.namespace }}/{{ $labels.horizontalpodautoscaler }} is at max replicas"
+            description: "HPA가 최대 레플리카에 도달했습니다. 트래픽이 계속 늘면 처리 불가."
+
+    # ── PVC / 스토리지 ───────────────────────────────────────
+    - name: storage.rules
+      interval: 5m
+      rules:
+        - alert: PvcAlmostFull
+          expr: |
+            (kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes) * 100 > 80
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} is almost full"
+            description: "PVC 사용률 {{ $value | printf \"%.1f\" }}%. 용량 증설을 검토하세요."
+
+        - alert: PvcFull
+          expr: |
+            (kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes) * 100 > 95
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} is full"
+            description: "PVC 사용률 {{ $value | printf \"%.1f\" }}%. 즉시 조치 필요."
+
+        - alert: PvcPending
+          expr: kube_persistentvolumeclaim_status_phase{phase="Pending"} == 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} is stuck in Pending"
+
+    # ── Kubernetes API Server ─────────────────────────────────
+    - name: apiserver.rules
+      interval: 1m
+      rules:
+        - alert: ApiServerHighErrorRate
+          expr: |
+            (sum(rate(apiserver_request_total{code=~"5.."}[5m])) /
+             sum(rate(apiserver_request_total[5m]))) * 100 > 5
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Kubernetes API server has high error rate"
+            description: "API 서버 5xx 에러율이 {{ $value | printf \"%.1f\" }}% 입니다."
+
+        - alert: ApiServerHighLatency
+          expr: |
+            histogram_quantile(0.99,
+              sum by(verb, le) (
+                rate(apiserver_request_duration_seconds_bucket{verb!~"WATCH|CONNECT"}[5m])
+              )
+            ) > 1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Kubernetes API server latency is high"
+            description: "API 서버 P99 레이턴시가 {{ $value | printf \"%.2f\" }}초입니다."

@@ -1,0 +1,105 @@
+# cert-manager/resources/certificates.yaml
+# CRD: Certificate (cert-manager.io/v1)
+# 역할: 실제 인증서 발급 요청
+#
+# 실무 팁:
+# - Ingress에 cert-manager 어노테이션만 달면 Certificate가 자동 생성됨 (권장)
+# - 와일드카드나 멀티도메인 인증서는 Certificate 리소스 직접 작성 필요
+# - Ingress 어노테이션: cert-manager.io/cluster-issuer: letsencrypt-prod
+
+---
+# 와일드카드 인증서 (*.example.com)
+# DNS-01 challenge 필요 → ClusterIssuer에서 Route53 solver 설정 필요
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-example-com
+  namespace: istio-system   # Istio Gateway에서 사용할 경우 istio-system에 생성
+  annotations:
+    cert-manager.io/description: "*.example.com 와일드카드 인증서. 모든 서브도메인에 사용."
+spec:
+  secretName: wildcard-example-com-tls   # 생성될 Secret 이름
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "example.com"
+    - "*.example.com"
+  # 갱신 설정
+  duration: 2160h        # 90일 (Let's Encrypt 기본)
+  renewBefore: 360h      # 만료 15일 전 갱신
+
+---
+# 멀티도메인 인증서 (SAN)
+# 여러 도메인을 하나의 인증서로 처리
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: api-services-tls
+  namespace: production
+  annotations:
+    cert-manager.io/description: "API 서비스 전용 인증서. HTTP-01 challenge."
+spec:
+  secretName: api-services-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "api.example.com"
+    - "api-v2.example.com"
+    - "graphql.example.com"
+  duration: 2160h
+  renewBefore: 360h
+  # 인증서 갱신 시 파드 자동 재시작 (cert-manager 1.15+ 기능)
+  # secretTemplate:
+  #   annotations:
+  #     reloader.stakater.com/match: "true"   # Reloader 사용 시
+
+---
+# Istio Gateway용 와일드카드 인증서 참조 방법
+# Certificate 리소스가 아니라 Istio Gateway에서 Secret 참조
+# 아래는 참고용 Gateway 예시
+#
+# apiVersion: networking.istio.io/v1beta1
+# kind: Gateway
+# metadata:
+#   name: main-gateway
+#   namespace: istio-system
+# spec:
+#   selector:
+#     istio: gateway
+#   servers:
+#     - port:
+#         number: 443
+#         name: https
+#         protocol: HTTPS
+#       tls:
+#         mode: SIMPLE
+#         credentialName: wildcard-example-com-tls   # Certificate의 secretName
+#       hosts:
+#         - "*.example.com"
+
+---
+# 내부 서비스용 인증서 (internal-ca issuer 사용)
+# Prometheus ↔ Alertmanager 내부 TLS, DB 연결 등
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: monitoring-internal-tls
+  namespace: monitoring
+  annotations:
+    cert-manager.io/description: "모니터링 스택 내부 통신용 인증서."
+spec:
+  secretName: monitoring-internal-tls
+  issuerRef:
+    name: internal-ca
+    kind: ClusterIssuer
+  dnsNames:
+    - "prometheus.monitoring.svc.cluster.local"
+    - "alertmanager.monitoring.svc.cluster.local"
+    - "grafana.monitoring.svc.cluster.local"
+  duration: 8760h      # 1년 (내부 인증서는 더 길게)
+  renewBefore: 720h    # 만료 30일 전 갱신
+  usages:
+    - server auth
+    - client auth   # mTLS를 위해 client auth도 포함

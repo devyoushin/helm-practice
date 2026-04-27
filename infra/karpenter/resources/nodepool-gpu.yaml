@@ -1,0 +1,54 @@
+# karpenter/resources/nodepool-gpu.yaml
+# GPU 워크로드용 NodePool
+# ML 훈련, 추론 서버 등
+
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: gpu
+  annotations:
+    karpenter.sh/description: "GPU 워크로드 전용. g5/p4d On-Demand만 사용."
+spec:
+  template:
+    metadata:
+      labels:
+        nodepool: gpu
+        accelerator: nvidia
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: gpu   # ec2nodeclass-default.yaml의 gpu NodeClass
+      taints:
+        # GPU 없는 워크로드가 이 노드에 스케줄되지 않도록
+        - key: nvidia.com/gpu
+          effect: NoSchedule
+      requirements:
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]   # GPU는 Spot 복잡성 증가, on-demand 권장
+                                  # (Spot GPU 쓰려면 인터럽션 처리 로직 필요)
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: karpenter.k8s.aws/instance-family
+          operator: In
+          values:
+            - g5        # NVIDIA A10G, 추론 최적
+            - g5g       # ARM + NVIDIA T4G
+            - p4d       # NVIDIA A100, 대규모 훈련
+            - p4de      # NVIDIA A100 80GB
+            - p5        # NVIDIA H100, 최신 고성능
+
+  disruption:
+    consolidationPolicy: WhenEmpty    # GPU 노드는 비어있을 때만 제거
+    consolidateAfter: 5m
+    expireAfter: 720h
+    budgets:
+      - nodes: "10%"   # GPU는 교체 비용이 높으므로 더 보수적으로
+
+  limits:
+    cpu: "200"
+    memory: 800Gi
+
+  weight: 100   # 가장 높은 가중치 (GPU taint 있는 파드가 명확히 여기로 옴)

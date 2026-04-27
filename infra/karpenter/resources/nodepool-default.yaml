@@ -1,0 +1,133 @@
+# karpenter/resources/nodepool-default.yaml
+# CRD: NodePool (karpenter.sh/v1)
+# 역할: 어떤 인스턴스를 어떤 조건으로 프로비저닝할지 정의
+#
+# 적용: kubectl apply -f infra/karpenter/resources/nodepool-default.yaml
+
+---
+# 범용 NodePool (Spot + On-Demand 혼합)
+# 일반 워크로드 (API 서버, 워커, 배치 등)
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: default
+  annotations:
+    karpenter.sh/description: "범용 노드풀. Spot 우선, 없으면 On-Demand fallback"
+spec:
+  template:
+    metadata:
+      labels:
+        nodepool: default
+      # 모든 Karpenter 노드에 자동으로 붙는 태그
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: default   # ec2nodeclass-default.yaml의 name과 일치
+
+      # ── 인스턴스 선택 조건 (AND 조건) ──────────────────────
+      requirements:
+        # Spot 우선, On-Demand fallback
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["spot", "on-demand"]
+
+        # x86_64만 사용 (arm64 필요하면 추가)
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+
+        # 인스턴스 패밀리: c(compute), m(general), r(memory) 계열
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["c", "m", "r"]
+
+        # 4세대 이상만 (최신 CPU)
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["3"]
+
+        # 너무 작은 인스턴스 제외 (xlarge 이상)
+        - key: karpenter.k8s.aws/instance-size
+          operator: NotIn
+          values: ["nano", "micro", "small", "medium", "large"]
+
+        # 특정 인스턴스 제외 (예: 네트워크 성능 낮은 것)
+        # - key: karpenter.k8s.aws/instance-family
+        #   operator: NotIn
+        #   values: ["t3", "t3a"]
+
+  # ── 노드 제거 정책 ─────────────────────────────────────────
+  disruption:
+    # WhenEmptyOrUnderutilized: 빈 노드 즉시 제거 + 사용률 낮은 노드 통합
+    # WhenEmpty: 빈 노드만 제거 (보수적)
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    consolidateAfter: 1m    # 1분간 저사용률 지속 시 통합 시작
+
+    # 노드 만료: 30일마다 새 노드로 교체 (보안 패치 적용 목적)
+    expireAfter: 720h
+
+    # 예산: 한 번에 최대 20% 또는 1개까지만 제거 (prod 안정성)
+    budgets:
+      - nodes: "20%"
+      # 배포 시간대에는 제거 중단 (KST 오전 9시~오후 7시 = UTC 00:00~10:00)
+      - schedule: "0 0 * * *"
+        duration: 10h
+        nodes: "0"
+
+  # ── 리소스 상한 (비용 폭증 방지 필수) ──────────────────────
+  limits:
+    cpu: "500"         # vCPU 합계
+    memory: 2000Gi     # 메모리 합계
+
+  # ── 가중치 (여러 NodePool 있을 때 우선순위) ─────────────────
+  weight: 10
+
+---
+# 시스템 컴포넌트용 NodePool (On-Demand 전용)
+# Prometheus, Istio, 기타 인프라 컴포넌트
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: system
+  annotations:
+    karpenter.sh/description: "시스템/인프라 컴포넌트 전용. On-Demand만 사용."
+spec:
+  template:
+    metadata:
+      labels:
+        nodepool: system
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: default
+      taints:
+        # 일반 워크로드가 이 노드에 스케줄되지 않도록
+        - key: dedicated
+          value: system
+          effect: NoSchedule
+      requirements:
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]   # 시스템 노드는 Spot 사용 안 함
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["m"]
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["4"]
+        - key: karpenter.k8s.aws/instance-size
+          operator: In
+          values: ["xlarge", "2xlarge"]
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 5m
+    expireAfter: 720h
+  limits:
+    cpu: "100"
+    memory: 400Gi
+  weight: 50  # default보다 높은 가중치 → 시스템 taint가 있는 노드 우선 선택
