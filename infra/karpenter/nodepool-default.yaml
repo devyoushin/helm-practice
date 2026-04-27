@@ -1,0 +1,134 @@
+# karpenter/nodepool-default.yaml
+# Karpenter NodePool + EC2NodeClass 예시
+# kubectl apply -f nodepool-default.yaml 또는 Helm post-install hook으로 적용
+#
+# 참고: NodePool/EC2NodeClass는 Karpenter CRD이므로
+# Helm 차트에 직접 포함하거나 별도 App Chart로 관리합니다.
+
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  template:
+    metadata:
+      labels:
+        nodepool: default
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: default
+
+      # 허용 조건 (AND 조건)
+      requirements:
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["spot", "on-demand"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["c", "m", "r"]
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["3"]
+
+      # Taint (GPU 노드 등 특수 용도)
+      # taints:
+      #   - key: dedicated
+      #     value: gpu
+      #     effect: NoSchedule
+
+  # 노드 만료 (72시간마다 교체 → 보안 패치 적용)
+  disruption:
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    consolidateAfter: 1m
+    expireAfter: 720h   # 30일
+
+  # 리소스 상한 (비용 폭증 방지)
+  limits:
+    cpu: "1000"
+    memory: 4000Gi
+
+---
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: default
+spec:
+  # AMI — AL2023 최신 EKS 최적화 AMI 자동 선택
+  amiSelectorTerms:
+    - alias: al2023@latest
+
+  # 서브넷 태그 기반 자동 검색
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "my-cluster"  # 클러스터명
+
+  # 보안그룹 자동 검색
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "my-cluster"
+
+  # IAM Instance Profile
+  role: "KarpenterNodeRole-my-cluster"
+
+  # 루트 볼륨 설정
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 50Gi
+        volumeType: gp3
+        iops: 3000
+        throughput: 125
+        encrypted: true
+        deleteOnTermination: true
+
+  # 메타데이터 서비스 보안 강화
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 1   # IMDSv2 강제
+    httpTokens: required
+
+  # 사용자 데이터 (추가 설정 필요 시)
+  # userData: |
+  #   #!/bin/bash
+  #   /etc/eks/bootstrap.sh my-cluster
+
+---
+# GPU NodePool 예시
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: gpu
+spec:
+  template:
+    metadata:
+      labels:
+        nodepool: gpu
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: gpu
+      taints:
+        - key: nvidia.com/gpu
+          effect: NoSchedule
+      requirements:
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]   # GPU는 on-demand만
+        - key: karpenter.k8s.aws/instance-family
+          operator: In
+          values: ["g5", "p4d", "p4de"]
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 5m
+    expireAfter: 720h
+  limits:
+    cpu: "200"
+    memory: 800Gi

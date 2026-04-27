@@ -1,0 +1,74 @@
+# apps/helmfile.yaml — 애플리케이션 스택 오케스트레이션
+# 사용법: helmfile -e prod sync
+
+environments:
+  dev:
+    values:
+      - environments/dev.yaml
+    kubeContext: dev-cluster
+  staging:
+    values:
+      - environments/staging.yaml
+    kubeContext: staging-cluster
+  prod:
+    values:
+      - environments/prod.yaml
+    kubeContext: prod-cluster
+
+---
+
+helmDefaults:
+  atomic: true
+  cleanupOnFail: true
+  timeout: 300
+  wait: true
+
+# 환경 공통값 참조
+{{ $env := .Values }}
+
+releases:
+  # ──────────────────────────────────────────────
+  # API Server
+  # ──────────────────────────────────────────────
+  - name: api-server
+    namespace: "{{ $env.namespace | default "default" }}"
+    createNamespace: true
+    chart: ./services/api-server
+    labels:
+      app: api-server
+      tier: backend
+    values:
+      - services/api-server/values.yaml
+      - services/api-server/values-{{ .Environment.Name }}.yaml
+    set:
+      # image.tag는 CI에서 주입: helmfile sync --set image.tag=abc1234
+      - name: global.domain
+        value: "{{ $env.domain }}"
+      - name: global.certIssuer
+        value: "{{ $env.certIssuer }}"
+
+  # ──────────────────────────────────────────────
+  # Worker
+  # ──────────────────────────────────────────────
+  - name: worker
+    namespace: "{{ $env.namespace | default "default" }}"
+    chart: ./services/worker
+    labels:
+      app: worker
+      tier: backend
+    values:
+      - services/worker/values.yaml
+      - services/worker/values-{{ .Environment.Name }}.yaml
+
+  # ──────────────────────────────────────────────
+  # Frontend
+  # ──────────────────────────────────────────────
+  - name: frontend
+    namespace: "{{ $env.namespace | default "default" }}"
+    chart: ./services/frontend
+    labels:
+      app: frontend
+      tier: frontend
+    values:
+      - services/frontend/values.yaml
+      - services/frontend/values-{{ .Environment.Name }}.yaml

@@ -1,0 +1,158 @@
+# helmfile.yaml — 인프라 스택 전체 오케스트레이션
+# 사용법: helmfile -e <env> sync
+
+environments:
+  dev:
+    values:
+      - environments/dev.yaml
+  staging:
+    values:
+      - environments/staging.yaml
+  prod:
+    values:
+      - environments/prod.yaml
+
+---
+
+repositories:
+  - name: jetstack
+    url: https://charts.jetstack.io
+  - name: ingress-nginx
+    url: https://kubernetes.github.io/ingress-nginx
+  - name: external-dns
+    url: https://kubernetes-sigs.github.io/external-dns
+  - name: karpenter
+    url: oci://public.ecr.aws/karpenter
+    oci: true
+  - name: istio
+    url: https://istio-release.storage.googleapis.com/charts
+  - name: prometheus-community
+    url: https://prometheus-community.github.io/helm-charts
+
+# 전역 기본값
+helmDefaults:
+  atomic: true
+  cleanupOnFail: true
+  timeout: 600
+  wait: true
+  waitForJobs: true
+
+releases:
+  # ──────────────────────────────────────────────
+  # Layer 0: cert-manager (CRD 먼저 설치)
+  # ──────────────────────────────────────────────
+  - name: cert-manager
+    namespace: cert-manager
+    createNamespace: true
+    chart: jetstack/cert-manager
+    version: "1.16.2"
+    labels:
+      layer: "0"
+      app: cert-manager
+    values:
+      - cert-manager/values.yaml
+    set:
+      - name: installCRDs
+        value: true
+
+  # ──────────────────────────────────────────────
+  # Layer 1: ingress-nginx
+  # ──────────────────────────────────────────────
+  - name: ingress-nginx
+    namespace: ingress-nginx
+    createNamespace: true
+    chart: ingress-nginx/ingress-nginx
+    version: "4.11.3"
+    labels:
+      layer: "1"
+      app: ingress-nginx
+    values:
+      - ingress-nginx/values.yaml
+      - ingress-nginx/values-{{ .Environment.Name }}.yaml
+
+  # ──────────────────────────────────────────────
+  # Layer 2: external-dns
+  # ──────────────────────────────────────────────
+  - name: external-dns
+    namespace: external-dns
+    createNamespace: true
+    chart: external-dns/external-dns
+    version: "1.15.0"
+    labels:
+      layer: "2"
+      app: external-dns
+    values:
+      - external-dns/values.yaml
+
+  # ──────────────────────────────────────────────
+  # Layer 3: karpenter (EKS 전용)
+  # ──────────────────────────────────────────────
+  - name: karpenter
+    namespace: kube-system
+    chart: karpenter/karpenter
+    version: "1.1.1"
+    labels:
+      layer: "3"
+      app: karpenter
+    values:
+      - karpenter/values.yaml
+      - karpenter/values-{{ .Environment.Name }}.yaml
+    needs:
+      - cert-manager/cert-manager   # karpenter webhook이 cert-manager 필요
+
+  # ──────────────────────────────────────────────
+  # Layer 4: istio (순서 중요: base → istiod → gateway)
+  # ──────────────────────────────────────────────
+  - name: istio-base
+    namespace: istio-system
+    createNamespace: true
+    chart: istio/base
+    version: "1.24.2"
+    labels:
+      layer: "4"
+      app: istio
+
+  - name: istiod
+    namespace: istio-system
+    chart: istio/istiod
+    version: "1.24.2"
+    labels:
+      layer: "4"
+      app: istio
+    values:
+      - istio/istiod/values.yaml
+    needs:
+      - istio-system/istio-base
+
+  - name: istio-gateway
+    namespace: istio-system
+    chart: istio/gateway
+    version: "1.24.2"
+    labels:
+      layer: "4"
+      app: istio
+    values:
+      - istio/gateway/values.yaml
+    needs:
+      - istio-system/istiod
+
+  # ──────────────────────────────────────────────
+  # Layer 5: monitoring (kube-prometheus-stack)
+  # ──────────────────────────────────────────────
+  - name: kube-prometheus-stack
+    namespace: monitoring
+    createNamespace: true
+    chart: prometheus-community/kube-prometheus-stack
+    version: "66.3.1"
+    labels:
+      layer: "5"
+      app: monitoring
+    values:
+      - monitoring/kube-prometheus-stack/values.yaml
+      - monitoring/kube-prometheus-stack/values-{{ .Environment.Name }}.yaml
+    # CRD는 별도로 관리 (차트 내 CRD 설치 비활성화)
+    set:
+      - name: prometheusOperator.admissionWebhooks.certManager.enabled
+        value: true
+    needs:
+      - cert-manager/cert-manager

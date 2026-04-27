@@ -1,0 +1,14 @@
+# karpenter/values-prod.yaml
+# prod 환경 오버라이드
+
+controller:
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      memory: 2Gi
+
+replicas: 2
+
+logLevel: warn

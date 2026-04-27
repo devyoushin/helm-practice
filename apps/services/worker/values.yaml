@@ -1,0 +1,115 @@
+# worker/values.yaml
+# 큐 기반 워커의 특성에 맞는 설정
+
+image:
+  repository: 123456789.dkr.ecr.ap-northeast-2.amazonaws.com/worker
+  tag: ""
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+# ── 워커 특화: Deployment가 아닌 경우 ────────────────────────
+# 큐 메시지 기반 스케일링이라면 KEDA ScaledJob 고려
+# 아래는 일반 Deployment 기준
+
+# ── 서비스 없음 (워커는 내부 처리만) ───────────────────────
+service:
+  enabled: false
+
+# ── 리소스 ───────────────────────────────────────────────────
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+
+# ── 환경변수 ──────────────────────────────────────────────────
+env:
+  - name: APP_ENV
+    value: development
+  - name: LOG_LEVEL
+    value: debug
+  - name: WORKER_CONCURRENCY
+    value: "5"
+  - name: QUEUE_URL
+    value: ""   # SQS URL — ExternalSecret으로 주입
+
+envFromSecrets:
+  - secretName: worker-secrets
+    optional: false
+
+# ── 헬스체크 (HTTP 없으면 exec 방식) ────────────────────────
+livenessProbe:
+  exec:
+    command:
+      - /bin/sh
+      - -c
+      - "test -f /tmp/healthy"
+  initialDelaySeconds: 15
+  periodSeconds: 30
+
+# ── HPA (KEDA 없을 때 CPU 기반 스케일링) ─────────────────────
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+# ── KEDA ScaledObject (SQS 기반 스케일링) ────────────────────
+keda:
+  enabled: false
+  minReplicaCount: 0   # 큐가 비면 0으로 스케일 다운
+  maxReplicaCount: 20
+  pollingInterval: 30
+  cooldownPeriod: 300
+  triggers:
+    - type: aws-sqs-queue
+      authenticationRef:
+        name: keda-aws-credentials
+      metadata:
+        queueURL: ""   # SQS Queue URL
+        queueLength: "5"   # 메시지 5개당 파드 1개
+        awsRegion: ap-northeast-2
+        identityOwner: operator   # IRSA 사용
+
+podDisruptionBudget:
+  enabled: false
+
+serviceAccount:
+  create: true
+  annotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+volumes:
+  - name: tmp
+    emptyDir: {}
+
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp
+
+terminationGracePeriodSeconds: 300   # 워커는 긴 graceful shutdown 필요
+
+lifecycle:
+  preStop:
+    exec:
+      # 현재 처리 중인 메시지 완료 대기
+      command: ["/bin/sh", "-c", "touch /tmp/shutdown && sleep 30"]
+
+externalSecret:
+  enabled: false
+  refreshInterval: 1h
+  secretStoreRef:
+    name: aws-secrets-manager
+    kind: ClusterSecretStore
+  data: []

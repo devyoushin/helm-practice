@@ -1,0 +1,46 @@
+# monitoring/kube-prometheus-stack/values-prod.yaml
+# prod 환경 오버라이드
+
+prometheus:
+  prometheusSpec:
+    retention: 30d
+    retentionSize: "200GB"
+    resources:
+      requests:
+        cpu: 2
+        memory: 8Gi
+      limits:
+        memory: 16Gi
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          resources:
+            requests:
+              storage: 500Gi
+    externalLabels:
+      cluster: "prod-cluster"
+      env: "prod"
+
+grafana:
+  replicas: 2
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/auth-url: "https://oauth2-proxy.example.com/oauth2/auth"
+      nginx.ingress.kubernetes.io/auth-signin: "https://oauth2-proxy.example.com/oauth2/start"
+    hosts:
+      - grafana.example.com
+    tls:
+      - secretName: grafana-tls
+        hosts:
+          - grafana.example.com
+  grafana.ini:
+    server:
+      domain: grafana.example.com
+    auth.github:
+      enabled: true
+      client_id: ""   # Secret으로 주입
+      client_secret: ""
+      allowed_organizations: my-org

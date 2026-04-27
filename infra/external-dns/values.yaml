@@ -1,0 +1,56 @@
+# external-dns/values.yaml
+# 차트: external-dns/external-dns
+# Kubernetes Service/Ingress → DNS 레코드 자동 생성
+
+# ── 프로바이더 설정 (Route53) ────────────────────────────────
+provider:
+  name: aws
+
+# AWS 설정
+env:
+  - name: AWS_DEFAULT_REGION
+    value: ap-northeast-2
+
+# ── 도메인 필터 (관리할 도메인만 지정) ─────────────────────────
+domainFilters:
+  - example.com
+
+# ── 정책 ─────────────────────────────────────────────────────
+# sync: 생성/업데이트/삭제
+# upsert-only: 생성/업데이트만 (삭제 안 함) — 안전한 시작점
+policy: upsert-only
+
+# ── 소스 (어떤 리소스에서 DNS 레코드 생성할지) ──────────────────
+sources:
+  - service
+  - ingress
+  - istio-gateway   # Istio 사용 시 추가
+  - istio-virtualservice
+
+# ── 텍스트 레코드 소유권 (TXT 레코드로 소유권 추적) ─────────────
+txtOwnerId: "eks-cluster-name"   # 클러스터별 고유값 필수
+txtPrefix: "external-dns-"
+
+# ── 레지스트리 ────────────────────────────────────────────────
+registry: txt
+
+# ── ServiceAccount (IRSA) ────────────────────────────────────
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: ""   # Route53 권한 필요
+
+# ── 동기화 주기 ───────────────────────────────────────────────
+interval: 1m
+
+# ── 로그 ─────────────────────────────────────────────────────
+logLevel: info
+logFormat: json
+
+# ── 리소스 ───────────────────────────────────────────────────
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 128Mi

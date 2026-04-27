@@ -12,6 +12,20 @@ helm-practice/
 ├── templates/                 # service-doc, runbook, incident-report
 ├── rules/                     # doc-writing, helm-conventions, security-checklist, monitoring
 ├── charts/                    # 실습용 Helm 차트
+├── infra/                     # CNCF/플랫폼 차트 (helmfile 기반)
+│   ├── helmfile.yaml          # 전체 스택 오케스트레이션
+│   ├── karpenter/             # 노드 오토스케일링
+│   ├── istio/                 # 서비스 메시 (base/istiod/gateway)
+│   ├── monitoring/            # kube-prometheus-stack
+│   ├── cert-manager/          # TLS 인증서 자동화
+│   ├── external-dns/          # DNS 자동화
+│   └── ingress-nginx/         # Ingress 컨트롤러
+├── apps/                      # 애플리케이션 차트 (helmfile 기반)
+│   ├── helmfile.yaml          # 앱 스택 오케스트레이션
+│   ├── environments/          # 환경별 공통값 (dev/staging/prod)
+│   └── services/              # 서비스별 차트
+│       ├── api-server/        # REST API 서버 (완성형 예시)
+│       └── worker/            # 비동기 워커 (KEDA 연동)
 └── *-guide.md                 # 주제별 가이드 문서
 ```
 

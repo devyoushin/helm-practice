@@ -1,0 +1,61 @@
+# karpenter/values.yaml
+# 차트: oci://public.ecr.aws/karpenter/karpenter
+# 버전: 1.1.x
+# 공식 문서: https://karpenter.sh/docs/
+
+# ── 필수 설정 (EKS 환경변수로 주입 권장) ──────────────────────────
+settings:
+  # EKS 클러스터명 (helmfile set 또는 --set으로 주입)
+  clusterName: ""          # --set settings.clusterName=my-cluster
+  clusterEndpoint: ""      # --set settings.clusterEndpoint=https://...
+
+  # Interruption handling (Spot 인스턴스 중단 처리)
+  interruptionQueue: ""    # SQS 큐 이름 (Spot 사용 시 필수)
+
+# ── ServiceAccount (IRSA) ────────────────────────────────────────
+serviceAccount:
+  create: true
+  name: karpenter
+  annotations:
+    # IRSA 또는 EKS Pod Identity ARN으로 대체
+    eks.amazonaws.com/role-arn: ""  # --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=arn:...
+
+# ── Controller 리소스 ────────────────────────────────────────────
+controller:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
+
+# ── 고가용성 설정 ─────────────────────────────────────────────────
+replicas: 2
+
+# karpenter 자신은 on-demand 노드에서 실행
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: karpenter.sh/nodepool
+              operator: DoesNotExist
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - topologyKey: kubernetes.io/hostname
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: karpenter
+
+tolerations:
+  - key: CriticalAddonsOnly
+    operator: Exists
+  - key: node-role.kubernetes.io/control-plane
+    effect: NoSchedule
+
+# ── 로깅 ─────────────────────────────────────────────────────────
+logLevel: info
+logOutputPaths:
+  - stdout
+logErrorOutputPaths:
+  - stderr

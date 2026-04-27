@@ -1,0 +1,10 @@
+# istio/base/values.yaml
+# 차트: istio/base
+# CRD와 클러스터 레벨 리소스 설치
+# istiod보다 먼저 배포해야 함
+
+defaultRevision: default
+
+# CRD 설치 활성화
+# 업그레이드 시 CRD 수동 업데이트 필요할 수 있음:
+# kubectl apply -f https://github.com/istio/istio/releases/download/1.24.2/base.yaml

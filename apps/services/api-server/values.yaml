@@ -1,0 +1,197 @@
+# api-server/values.yaml
+# 모든 환경 공통 기본값
+# 환경별 오버라이드: values-dev.yaml / values-staging.yaml / values-prod.yaml
+
+# ── 전역 ──────────────────────────────────────────────────────
+global:
+  domain: ""           # 환경별 values 또는 helmfile에서 주입
+  certIssuer: ""       # cert-manager ClusterIssuer 이름
+
+# ── 이미지 ────────────────────────────────────────────────────
+image:
+  repository: 123456789.dkr.ecr.ap-northeast-2.amazonaws.com/api-server
+  tag: ""              # CI에서 --set image.tag=<SHA> 로 주입
+  pullPolicy: IfNotPresent
+
+# ── 레플리카 ──────────────────────────────────────────────────
+replicaCount: 1
+
+# ── 서비스 ────────────────────────────────────────────────────
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+  # 헬스체크 포트 (Prometheus 등)
+  metricsPort: 9090
+
+# ── Ingress ───────────────────────────────────────────────────
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  host: ""             # api.example.com
+  path: /
+  pathType: Prefix
+  tls: true            # cert-manager 자동 발급
+
+# ── 리소스 (dev 기본값 — 환경별 오버라이드) ─────────────────────
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 256Mi
+
+# ── HPA ───────────────────────────────────────────────────────
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  # KEDA ScaledObject 사용 시 enabled: false (keda.enabled: true로 전환)
+
+# ── PodDisruptionBudget ───────────────────────────────────────
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1   # 또는 maxUnavailable: 1
+
+# ── 환경변수 ──────────────────────────────────────────────────
+env:
+  # 일반 환경변수
+  - name: APP_ENV
+    value: development
+  - name: LOG_LEVEL
+    value: debug
+  - name: PORT
+    value: "8080"
+
+# 시크릿에서 주입하는 환경변수
+envFromSecrets:
+  - secretName: api-server-secrets   # External Secrets Operator가 생성
+    optional: false
+
+# ConfigMap에서 주입
+# envFromConfigMaps:
+#   - configMapName: api-server-config
+
+# ── 헬스체크 ──────────────────────────────────────────────────
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 15
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  failureThreshold: 3
+
+startupProbe:
+  httpGet:
+    path: /health/live
+    port: 8080
+  failureThreshold: 30
+  periodSeconds: 5
+
+# ── 롤링 업데이트 전략 ────────────────────────────────────────
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+# ── Graceful Shutdown ─────────────────────────────────────────
+terminationGracePeriodSeconds: 60
+
+lifecycle:
+  preStop:
+    exec:
+      # 커넥션 드레이닝 대기 (NLB deregistration 지연)
+      command: ["/bin/sh", "-c", "sleep 5"]
+
+# ── ServiceAccount ────────────────────────────────────────────
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+  # IRSA 예시:
+  # annotations:
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::123456789:role/api-server-role
+
+# ── 보안 컨텍스트 ─────────────────────────────────────────────
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+# ── 볼륨 (임시 쓰기 영역) ────────────────────────────────────
+volumes:
+  - name: tmp
+    emptyDir: {}
+
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp
+
+# ── Prometheus 메트릭 ─────────────────────────────────────────
+metrics:
+  enabled: true
+  path: /metrics
+  port: 9090
+  serviceMonitor:
+    enabled: false   # monitoring 네임스페이스에 Prometheus 있을 때 활성화
+
+# ── Istio 사이드카 ────────────────────────────────────────────
+podAnnotations:
+  # Istio 사이드카 주입 (네임스페이스 레이블로 제어하는 게 일반적)
+  # sidecar.istio.io/inject: "true"
+
+  # Prometheus 스크래핑 (Istio 없이 직접 스크래핑 시)
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9090"
+  prometheus.io/path: "/metrics"
+
+# ── 토폴로지 분산 ────────────────────────────────────────────
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: api-server
+
+# ── 노드 선택 ────────────────────────────────────────────────
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# ── ConfigMap ────────────────────────────────────────────────
+configMap:
+  enabled: false
+  data: {}
+
+# ── External Secrets (AWS Secrets Manager 연동) ───────────────
+externalSecret:
+  enabled: false
+  refreshInterval: 1h
+  secretStoreRef:
+    name: aws-secrets-manager
+    kind: ClusterSecretStore
+  data: []
+  # 예시:
+  # - secretKey: DATABASE_URL
+  #   remoteRef:
+  #     key: /prod/api-server/database-url

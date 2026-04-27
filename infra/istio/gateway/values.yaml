@@ -1,0 +1,61 @@
+# istio/gateway/values.yaml
+# 차트: istio/gateway
+# Ingress Gateway (외부 트래픽 진입점)
+
+# Gateway 이름
+name: istio-gateway
+
+# 서비스 타입
+service:
+  type: LoadBalancer
+  # AWS NLB 사용 시 어노테이션
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "external"
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+  ports:
+    - name: status-port
+      port: 15021
+      protocol: TCP
+      targetPort: 15021
+    - name: http2
+      port: 80
+      protocol: TCP
+      targetPort: 80
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: 443
+
+# 리소스
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 1Gi
+
+# 오토스케일링
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  minAvailable: 1
+
+# 노드 배치 — 전용 노드 or 시스템 노드
+tolerations:
+  - key: CriticalAddonsOnly
+    operator: Exists
+
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - topologyKey: kubernetes.io/hostname
+        labelSelector:
+          matchLabels:
+            app: istio-gateway

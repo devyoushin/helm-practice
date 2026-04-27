@@ -1,0 +1,6 @@
+apiVersion: v2
+name: worker
+description: 비동기 워커 서비스 — 큐 기반 백그라운드 처리
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

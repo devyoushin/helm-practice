@@ -1,0 +1,4 @@
+namespace: production
+domain: example.com
+certIssuer: letsencrypt-prod
+ingressClass: nginx

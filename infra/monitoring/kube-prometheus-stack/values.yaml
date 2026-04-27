@@ -1,0 +1,240 @@
+# monitoring/kube-prometheus-stack/values.yaml
+# 차트: prometheus-community/kube-prometheus-stack
+# 버전: 66.x (Prometheus 3.x + Grafana 11.x + Alertmanager 0.27.x)
+#
+# 포함 컴포넌트:
+# - Prometheus Operator
+# - Prometheus
+# - Alertmanager
+# - Grafana
+# - kube-state-metrics
+# - node-exporter
+
+# ── Prometheus Operator ────────────────────────────────────────
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+  # cert-manager로 webhook 인증서 관리 (helmfile에서 set으로 활성화)
+  admissionWebhooks:
+    certManager:
+      enabled: true
+
+# ── Prometheus ────────────────────────────────────────────────
+prometheus:
+  prometheusSpec:
+    # 데이터 보존
+    retention: 15d
+    retentionSize: "50GB"
+
+    # 스토리지 (PVC)
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 100Gi
+
+    # 리소스
+    resources:
+      requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        memory: 8Gi
+
+    # 샤딩 (대규모 환경)
+    # shards: 2
+
+    # 모든 네임스페이스의 ServiceMonitor/PodMonitor 수집
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+
+    # 외부 레이블 (멀티클러스터 Thanos/Mimir 사용 시 필수)
+    externalLabels:
+      cluster: ""    # --set prometheus.prometheusSpec.externalLabels.cluster=my-cluster
+      env: ""        # --set prometheus.prometheusSpec.externalLabels.env=prod
+
+    # 원격 쓰기 (Thanos/Mimir/Grafana Cloud)
+    # remoteWrite:
+    #   - url: https://mimir.example.com/api/v1/push
+    #     headers:
+    #       X-Scope-OrgID: my-org
+
+    # 고가용성 (Thanos sidecar 없이 기본 HA)
+    replicas: 2
+    podAntiAffinity: hard
+
+    # 보안 컨텍스트
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 65534
+      fsGroup: 65534
+
+# ── Alertmanager ─────────────────────────────────────────────
+alertmanager:
+  alertmanagerSpec:
+    replicas: 2
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+
+  # 알림 설정 (시크릿으로 외부 관리 권장)
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by: ['alertname', 'cluster', 'service']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: 'slack-notifications'
+      routes:
+        - receiver: 'pagerduty-critical'
+          matchers:
+            - severity =~ "critical"
+          continue: true
+        - receiver: 'slack-notifications'
+          matchers:
+            - severity =~ "warning|critical"
+    receivers:
+      - name: 'slack-notifications'
+        slack_configs:
+          - api_url: ""   # Secret으로 주입
+            channel: '#alerts'
+            text: |
+              {{ range .Alerts }}
+              *Alert:* {{ .Labels.alertname }}
+              *Severity:* {{ .Labels.severity }}
+              *Description:* {{ .Annotations.description }}
+              {{ end }}
+      - name: 'pagerduty-critical'
+        pagerduty_configs:
+          - routing_key: ""  # Secret으로 주입
+    inhibit_rules:
+      - source_matchers:
+          - severity = critical
+        target_matchers:
+          - severity = warning
+        equal: ['alertname', 'cluster', 'service']
+
+# ── Grafana ───────────────────────────────────────────────────
+grafana:
+  enabled: true
+
+  # 관리자 비밀번호 (프로덕션에서는 시크릿 참조)
+  adminPassword: ""   # --set grafana.adminPassword=... 또는 existingSecret
+
+  # 영구 저장소
+  persistence:
+    enabled: true
+    storageClassName: gp3
+    size: 10Gi
+
+  # Ingress
+  ingress:
+    enabled: false   # values-prod.yaml에서 활성화
+
+  # 사전 설치 대시보드
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: 'default'
+          orgId: 1
+          folder: ''
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/default
+
+  # Grafana.ini 설정
+  grafana.ini:
+    server:
+      domain: ""   # --set grafana."grafana.ini".server.domain=grafana.example.com
+      root_url: "https://%(domain)s"
+    auth.github:
+      enabled: false   # SSO는 values-prod.yaml에서 설정
+    analytics:
+      reporting_enabled: false
+      check_for_updates: false
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+# ── kube-state-metrics ───────────────────────────────────────
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+
+# ── node-exporter ────────────────────────────────────────────
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+  tolerations:
+    - effect: NoSchedule
+      operator: Exists   # 모든 노드에 배포 (GPU, spot 포함)
+
+# ── 기본 알림 규칙 ───────────────────────────────────────────
+defaultRules:
+  create: true
+  rules:
+    alertmanager: true
+    etcd: true
+    configReloaders: true
+    general: true
+    k8sContainerCpuUsageSecondsTotal: true
+    k8sContainerMemoryCache: true
+    k8sContainerMemoryRss: true
+    k8sContainerMemorySwap: true
+    k8sContainerResource: true
+    k8sPodOwner: true
+    kubeApiserverAvailability: true
+    kubeApiserverBurnrate: true
+    kubeApiserverHistogram: true
+    kubeApiserverSlos: true
+    kubeControllerManager: true
+    kubelet: true
+    kubeProxy: false   # kube-proxy 없는 환경(Cilium 등)에서는 비활성화
+    kubePrometheusGeneral: true
+    kubePrometheusNodeRecording: true
+    kubernetesAbsent: true
+    kubernetesApps: true
+    kubernetesResources: true
+    kubernetesStorage: true
+    kubernetesSystem: true
+    kubeSchedulerAlerting: true
+    kubeSchedulerRecording: true
+    kubeStateMetrics: true
+    network: true
+    node: true
+    nodeExporterAlerting: true
+    nodeExporterRecording: true
+    prometheus: true
+    prometheusOperator: true
+    windows: false

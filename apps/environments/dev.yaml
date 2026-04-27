@@ -1,0 +1,4 @@
+namespace: dev
+domain: dev.example.com
+certIssuer: letsencrypt-staging
+ingressClass: nginx

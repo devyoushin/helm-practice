@@ -1,0 +1,36 @@
+# api-server/values-dev.yaml
+# dev 환경 오버라이드
+
+replicaCount: 1
+
+ingress:
+  enabled: true
+  host: api.dev.example.com
+
+env:
+  - name: APP_ENV
+    value: development
+  - name: LOG_LEVEL
+    value: debug
+  - name: PORT
+    value: "8080"
+
+# dev는 리소스 최소화
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 256Mi
+
+# dev는 HPA/PDB 불필요
+autoscaling:
+  enabled: false
+podDisruptionBudget:
+  enabled: false
+
+# 빠른 배포를 위해 기다리는 시간 최소화
+livenessProbe:
+  initialDelaySeconds: 5
+readinessProbe:
+  initialDelaySeconds: 3

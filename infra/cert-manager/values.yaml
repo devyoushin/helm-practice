@@ -1,0 +1,47 @@
+# cert-manager/values.yaml
+# 차트: jetstack/cert-manager
+# CRD는 helmfile set으로 installCRDs: true 설정
+
+# ── 글로벌 ────────────────────────────────────────────────────
+global:
+  leaderElection:
+    namespace: cert-manager
+
+# ── Controller ───────────────────────────────────────────────
+replicaCount: 2
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
+
+# ── Webhook ──────────────────────────────────────────────────
+webhook:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
+
+# ── cainjector ───────────────────────────────────────────────
+cainjector:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+
+# ── ServiceAccount (IRSA) ────────────────────────────────────
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: ""   # Route53 권한 필요 시
+
+# ── ClusterIssuer는 별도 적용 ─────────────────────────────────
+# kubectl apply -f cert-manager/cluster-issuers.yaml

@@ -1,0 +1,68 @@
+# istio/istiod/values.yaml
+# 차트: istio/istiod
+# Control plane 설정
+
+pilot:
+  # 리소스 (트래픽 규모에 따라 조정)
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      memory: 4Gi
+
+  # 오토스케일링
+  autoscaleEnabled: true
+  autoscaleMin: 2
+  autoscaleMax: 5
+
+  # Envoy 사이드카 기본 리소스
+  env:
+    PILOT_ENABLE_STATUS: true
+    # 메시 외부로의 트래픽 정책
+    # ALLOW_ANY: 모든 외부 트래픽 허용 (기본)
+    # REGISTRY_ONLY: ServiceEntry에 등록된 것만 허용 (보안 강화)
+    PILOT_ENABLE_WORKLOAD_ENTRY_AUTOREGISTRATION: false
+
+# 글로벌 메시 설정
+meshConfig:
+  # 기본 트래픽 정책
+  outboundTrafficPolicy:
+    mode: REGISTRY_ONLY   # prod 권장: 외부 egress 명시 필요
+
+  # 액세스 로그 (stdout → Fluentd/Loki로 수집)
+  accessLogFile: /dev/stdout
+  accessLogEncoding: JSON
+
+  # 기본 mTLS 모드
+  # STRICT: 모든 통신 mTLS 강제 (권장)
+  # PERMISSIVE: mTLS + plaintext 혼용 (마이그레이션 중)
+  defaultConfig:
+    proxyStatsMatcher:
+      inclusionRegexps:
+        - ".*outlier_detection.*"
+        - ".*circuit_breakers.*"
+
+  # 분산 트레이싱 (Jaeger/Tempo)
+  # extensionProviders:
+  #   - name: jaeger
+  #     opentelemetry:
+  #       service: jaeger-collector.observability.svc.cluster.local
+  #       port: 4317
+
+# 사이드카 인젝터
+sidecarInjectorWebhook:
+  # 기본 사이드카 리소스
+  defaultTemplatesChecksum: ""
+  neverInjectSelector:
+    - matchExpressions:
+        - key: sidecar.istio.io/inject
+          operator: In
+          values: ["false"]
+
+# 고가용성
+tolerations:
+  - key: CriticalAddonsOnly
+    operator: Exists
+
+podAntiAffinityPreset: soft
