@@ -21,16 +21,16 @@ values.yaml 기본값
 
 ```bash
 # 파일로 값 덮어쓰기
-helm install my-release charts/my-app -f prod-values.yaml
+helm install my-release ops/charts/my-app -f prod-values.yaml
 
 # 개별 값 덮어쓰기
-helm install my-release charts/my-app --set replicaCount=3
+helm install my-release ops/charts/my-app --set replicaCount=3
 
 # 중첩 키
-helm install my-release charts/my-app --set image.tag=2.0.0
+helm install my-release ops/charts/my-app --set image.tag=2.0.0
 
 # 배열 값
-helm install my-release charts/my-app --set "env[0].name=ENV,env[0].value=prod"
+helm install my-release ops/charts/my-app --set "env[0].name=ENV,env[0].value=prod"
 ```
 
 ---

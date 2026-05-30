@@ -131,7 +131,7 @@ helm test my-release --logs
 ## 6. 실전 패턴: DB 마이그레이션
 
 ```
-helm upgrade --install my-release charts/my-app
+helm upgrade --install my-release ops/charts/my-app
         │
         ▼
 [pre-upgrade Hook] db-migrate Job 실행

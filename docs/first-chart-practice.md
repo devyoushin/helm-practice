@@ -10,7 +10,7 @@ values 변경 → upgrade → rollback까지 전체 흐름을 실습합니다.
 
 ```
 helm-practice/
-├── charts/
+├── ops/charts/
 │   └── my-app/
 │       ├── Chart.yaml
 │       ├── values.yaml
@@ -28,10 +28,10 @@ helm-practice/
 
 ```bash
 # helm create로 기본 골격 생성
-helm create charts/my-app
+helm create ops/charts/my-app
 
-# 또는 직접 이 repo의 charts/my-app 사용
-ls charts/my-app
+# 또는 직접 이 repo의 ops/charts/my-app 사용
+ls ops/charts/my-app
 ```
 
 ---
@@ -40,13 +40,13 @@ ls charts/my-app
 
 ```bash
 # 문법 검사
-helm lint charts/my-app
+helm lint ops/charts/my-app
 
 # 렌더링 결과 미리 보기 (클러스터 불필요)
-helm template my-release charts/my-app
+helm template my-release ops/charts/my-app
 
 # 특정 값 덮어써서 렌더링
-helm template my-release charts/my-app --set replicaCount=3 --set image.tag=1.25.0
+helm template my-release ops/charts/my-app --set replicaCount=3 --set image.tag=1.25.0
 ```
 
 ---
@@ -58,10 +58,10 @@ helm template my-release charts/my-app --set replicaCount=3 --set image.tag=1.25
 kubectl create namespace helm-demo
 
 # dry-run으로 사전 확인
-helm install my-release charts/my-app -n helm-demo --dry-run --debug
+helm install my-release ops/charts/my-app -n helm-demo --dry-run --debug
 
 # 실제 설치
-helm install my-release charts/my-app -n helm-demo
+helm install my-release ops/charts/my-app -n helm-demo
 
 # 설치 확인
 helm list -n helm-demo
@@ -106,7 +106,7 @@ helm get values my-release -n helm-demo --all
 
 ```bash
 # image tag를 1.25.0으로 변경
-helm upgrade my-release charts/my-app -n helm-demo --set image.tag=1.25.0
+helm upgrade my-release ops/charts/my-app -n helm-demo --set image.tag=1.25.0
 
 # revision이 2로 증가했는지 확인
 helm history my-release -n helm-demo
@@ -127,7 +127,7 @@ image:
   tag: "1.25.0"
 EOF
 
-helm upgrade my-release charts/my-app -n helm-demo -f /tmp/custom-values.yaml
+helm upgrade my-release ops/charts/my-app -n helm-demo -f /tmp/custom-values.yaml
 
 # Pod 3개로 늘어났는지 확인
 kubectl get pods -n helm-demo

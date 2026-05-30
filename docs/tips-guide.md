@@ -8,7 +8,7 @@
 
 ### 파일 구조
 ```
-charts/production-app/
+ops/charts/production-app/
 ├── values.yaml           # 기본값 (공통)
 ├── values-dev.yaml       # dev 오버라이드
 ├── values-staging.yaml   # staging 오버라이드
@@ -18,8 +18,8 @@ charts/production-app/
 ### 사용법
 ```bash
 # 기본값 + 환경 오버라이드 합성 (오른쪽이 우선순위 높음)
-helm install my-app charts/production-app \
-  -f charts/production-app/values-prod.yaml \
+helm install my-app ops/charts/production-app \
+  -f ops/charts/production-app/values-prod.yaml \
   --set secret.data.DB_PASSWORD=$DB_PASSWORD
 
 # 현재 적용된 values 확인
@@ -28,7 +28,7 @@ helm get values my-app -n production
 
 > **팁**: `-f` 여러 개 중첩 가능. 오른쪽 파일이 왼쪽 파일을 덮어씁니다.
 > ```bash
-> helm upgrade my-app charts/production-app \
+> helm upgrade my-app ops/charts/production-app \
 >   -f values-base.yaml \
 >   -f values-prod.yaml \
 >   -f values-hotfix.yaml   # 가장 높은 우선순위
@@ -40,20 +40,20 @@ helm get values my-app -n production
 
 ```bash
 # 1단계: 문법 검사
-helm lint charts/production-app
+helm lint ops/charts/production-app
 
 # 2단계: 렌더링 결과 미리보기 (클러스터 불필요)
-helm template my-app charts/production-app -f values-prod.yaml
+helm template my-app ops/charts/production-app -f values-prod.yaml
 
 # 3단계: 실제 클러스터에 dry-run (API 검증 포함)
-helm install my-app charts/production-app \
+helm install my-app ops/charts/production-app \
   -f values-prod.yaml \
   --dry-run --debug \
   -n production
 
 # 4단계: diff 플러그인으로 변경사항만 확인 (upgrade 전 필수)
 helm plugin install https://github.com/databus23/helm-diff
-helm diff upgrade my-app charts/production-app -f values-prod.yaml -n production
+helm diff upgrade my-app ops/charts/production-app -f values-prod.yaml -n production
 ```
 
 > **팁**: CI/CD 파이프라인에 `helm lint` + `helm template` + `helm diff`를 반드시 포함시키세요.
@@ -65,7 +65,7 @@ helm diff upgrade my-app charts/production-app -f values-prod.yaml -n production
 
 ### 방법 1: --set으로 주입 (CI/CD 환경변수 활용)
 ```bash
-helm upgrade my-app charts/production-app \
+helm upgrade my-app ops/charts/production-app \
   -f values-prod.yaml \
   --set secret.data.DB_PASSWORD=$DB_PASSWORD \
   --set secret.data.API_KEY=$API_KEY \
@@ -76,7 +76,7 @@ helm upgrade my-app charts/production-app \
 ```bash
 helm plugin install https://github.com/jkroepke/helm-secrets
 # secrets.prod.yaml을 암호화된 상태로 저장 후:
-helm secrets upgrade my-app charts/production-app \
+helm secrets upgrade my-app ops/charts/production-app \
   -f values-prod.yaml \
   -f secrets://secrets.prod.yaml \
   -n production
@@ -171,9 +171,9 @@ spec:
 
 ```bash
 # 환경을 Release 이름에 포함시키면 동일 클러스터에서 관리가 쉬움
-helm install production-app-dev    charts/production-app -f values-dev.yaml    -n dev
-helm install production-app-staging charts/production-app -f values-staging.yaml -n staging
-helm install production-app         charts/production-app -f values-prod.yaml   -n production
+helm install production-app-dev    ops/charts/production-app -f values-dev.yaml    -n dev
+helm install production-app-staging ops/charts/production-app -f values-staging.yaml -n staging
+helm install production-app         ops/charts/production-app -f values-prod.yaml   -n production
 
 # 전체 Release 목록 한눈에 보기
 helm list -A
@@ -205,10 +205,10 @@ helm history my-app -n production
 
 ```bash
 # 렌더링된 매니페스트 전체 출력
-helm template my-app charts/production-app -f values-prod.yaml
+helm template my-app ops/charts/production-app -f values-prod.yaml
 
 # 특정 템플릿 파일만 출력
-helm template my-app charts/production-app -s templates/deployment.yaml
+helm template my-app ops/charts/production-app -s templates/deployment.yaml
 
 # 현재 클러스터에 배포된 매니페스트 확인
 helm get manifest my-app -n production
@@ -220,7 +220,7 @@ helm get values my-app -n production
 helm get values my-app -n production --all
 
 # verbose 로그 (--debug)
-helm upgrade my-app charts/production-app --debug -f values-prod.yaml -n production
+helm upgrade my-app ops/charts/production-app --debug -f values-prod.yaml -n production
 
 # 특정 리소스가 왜 업데이트됐는지 추적
 kubectl rollout history deployment/my-app -n production
@@ -270,7 +270,7 @@ spec:
 helm test my-app -n production
 
 # CI/CD 파이프라인에서 활용
-helm upgrade --install my-app charts/production-app -f values-prod.yaml -n production
+helm upgrade --install my-app ops/charts/production-app -f values-prod.yaml -n production
 helm test my-app -n production --timeout 5m
 ```
 
@@ -281,7 +281,7 @@ helm test my-app -n production --timeout 5m
 ```bash
 # ECR에 Chart 푸시
 aws ecr create-repository --repository-name helm-charts/production-app
-helm package charts/production-app
+helm package ops/charts/production-app
 helm push production-app-0.1.0.tgz oci://123456789.dkr.ecr.ap-northeast-2.amazonaws.com/helm-charts
 
 # OCI Registry에서 설치
@@ -301,7 +301,7 @@ spec:
   source:
     repoURL: https://github.com/devyoushin/helm-practice
     targetRevision: HEAD
-    path: charts/production-app
+    path: ops/charts/production-app
     helm:
       valueFiles:
         - values-prod.yaml

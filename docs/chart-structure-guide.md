@@ -15,7 +15,7 @@ helm create my-app
 my-app/
 ├── Chart.yaml           # Chart 메타데이터 (필수)
 ├── values.yaml          # 기본 설정값 (필수)
-├── charts/              # 의존 Chart(Subchart)가 위치하는 디렉토리
+├── ops/charts/              # 의존 Chart(Subchart)가 위치하는 디렉토리
 ├── templates/           # K8s 매니페스트 템플릿 디렉토리 (필수)
 │   ├── _helpers.tpl     # Named Template 모음 (K8s 리소스로 렌더링되지 않음)
 │   ├── deployment.yaml
@@ -137,14 +137,14 @@ tests/
 
 ```bash
 # 문법 오류 검사
-helm lint charts/my-app
+helm lint ops/charts/my-app
 
 # 렌더링 결과 미리보기 (클러스터 미적용)
-helm template my-release charts/my-app
+helm template my-release ops/charts/my-app
 
 # 특정 values 파일 적용해서 렌더링
-helm template my-release charts/my-app -f custom-values.yaml
+helm template my-release ops/charts/my-app -f custom-values.yaml
 
 # dry-run (클러스터와 통신하지만 실제 배포 안 함)
-helm install my-release charts/my-app --dry-run --debug
+helm install my-release ops/charts/my-app --dry-run --debug
 ```

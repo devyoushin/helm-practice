@@ -8,11 +8,11 @@ helm-practice/
 ├── .claude/
 │   ├── settings.json
 │   └── commands/              # /new-doc, /new-runbook, /review-doc, /add-troubleshooting, /search-kb
-├── agents/                    # doc-writer, chart-designer, values-advisor, troubleshooter
-├── templates/                 # service-doc, runbook, incident-report
-├── rules/                     # doc-writing, helm-conventions, security-checklist, monitoring
-├── charts/                    # 실습용 Helm 차트
-├── infra/                     # CNCF/플랫폼 차트 (helmfile 기반)
+├── docs/agents/                    # doc-writer, chart-designer, values-advisor, troubleshooter
+├── docs/templates/            # service-doc, runbook, incident-report
+├── docs/rules/                     # doc-writing, helm-conventions, security-checklist, monitoring
+├── ops/charts/                    # 실습용 Helm 차트
+├── ops/infra/                     # CNCF/플랫폼 차트 (helmfile 기반)
 │   ├── helmfile.yaml          # 전체 스택 오케스트레이션
 │   ├── karpenter/             # 노드 오토스케일링
 │   ├── istio/                 # 서비스 메시 (base/istiod/gateway)
@@ -20,7 +20,7 @@ helm-practice/
 │   ├── cert-manager/          # TLS 인증서 자동화
 │   ├── external-dns/          # DNS 자동화
 │   └── ingress-nginx/         # Ingress 컨트롤러
-├── apps/                      # 애플리케이션 차트 (helmfile 기반)
+├── ops/apps/                      # 애플리케이션 차트 (helmfile 기반)
 │   ├── helmfile.yaml          # 앱 스택 오케스트레이션
 │   ├── environments/          # 환경별 공통값 (dev/staging/prod)
 │   └── services/              # 서비스별 차트
@@ -37,7 +37,7 @@ helm-practice/
 |--------|------|---------|
 | `/new-doc` | 새 가이드 문서 생성 | `/new-doc subchart-communication` |
 | `/new-runbook` | 새 런북 생성 | `/new-runbook 프로덕션 차트 업그레이드` |
-| `/review-doc` | 차트/문서 검토 | `/review-doc charts/my-app/values.yaml` |
+| `/review-doc` | 차트/문서 검토 | `/review-doc ops/charts/my-app/values.yaml` |
 | `/add-troubleshooting` | 트러블슈팅 케이스 추가 | `/add-troubleshooting upgrade 후 CrashLoopBackOff` |
 | `/search-kb` | 지식베이스 검색 | `/search-kb Helm 훅 실행 순서` |
 

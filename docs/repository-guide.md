@@ -86,7 +86,7 @@ aws ecr get-login-password --region ap-northeast-2 | \
   123456789012.dkr.ecr.ap-northeast-2.amazonaws.com
 
 # Chart 패키징
-helm package charts/my-app
+helm package ops/charts/my-app
 
 # ECR에 Push
 helm push my-app-0.1.0.tgz oci://123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/helm-charts
@@ -110,13 +110,13 @@ helm push my-app-0.1.0.tgz oci://ghcr.io/my-org/helm-charts
 
 ```bash
 # Chart 문법 검사
-helm lint charts/my-app
+helm lint ops/charts/my-app
 
 # .tgz 파일로 패키징
-helm package charts/my-app
+helm package ops/charts/my-app
 
 # 버전 지정
-helm package charts/my-app --version 1.0.0 --app-version "2.0.0"
+helm package ops/charts/my-app --version 1.0.0 --app-version "2.0.0"
 ```
 
 ---

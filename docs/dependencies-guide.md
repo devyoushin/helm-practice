@@ -37,23 +37,23 @@ dependencies:
 ## 2. 의존성 다운로드
 
 ```bash
-# 선언된 의존성 다운로드 → charts/ 디렉토리에 .tgz로 저장
-helm dependency update charts/my-app
+# 선언된 의존성 다운로드 → ops/charts/ 디렉토리에 .tgz로 저장
+helm dependency update ops/charts/my-app
 
-# 이미 charts/에 있는 의존성만 설치 (update 없이)
-helm dependency build charts/my-app
+# 이미 ops/charts/에 있는 의존성만 설치 (update 없이)
+helm dependency build ops/charts/my-app
 
 # 의존성 목록 확인
-helm dependency list charts/my-app
+helm dependency list ops/charts/my-app
 ```
 
 실행 후 구조:
 ```
-charts/my-app/
+ops/charts/my-app/
 ├── Chart.yaml
 ├── Chart.lock          # 실제 사용된 버전 고정 (lockfile)
 ├── values.yaml
-├── charts/
+├── ops/charts/
 │   ├── postgresql-12.x.x.tgz
 │   └── redis-17.x.x.tgz
 └── templates/
@@ -156,7 +156,7 @@ dependencies:
 ```
 
 ```bash
-helm dependency update charts/my-app
+helm dependency update ops/charts/my-app
 ```
 
 ---
@@ -190,13 +190,13 @@ Chart.yaml (dependencies 선언)
 helm dependency update
         │
         ▼
-charts/ 디렉토리에 .tgz 다운로드 + Chart.lock 생성
+ops/charts/ 디렉토리에 .tgz 다운로드 + Chart.lock 생성
         │
         ▼
 helm install/upgrade
         │
         ├── 부모 templates/ 렌더링
-        └── Subchart(charts/*.tgz) 렌더링
+        └── Subchart(ops/charts/*.tgz) 렌더링
                    ↑
             condition이 true인 것만
 ```

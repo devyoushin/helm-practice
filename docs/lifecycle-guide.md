@@ -10,22 +10,22 @@ Chart를 클러스터에 설치한 인스턴스를 **Release**라고 합니다.
 
 ```bash
 # 기본 설치
-helm install my-release charts/my-app
+helm install my-release ops/charts/my-app
 
 # 네임스페이스 지정 (없으면 자동 생성 가능)
-helm install my-release charts/my-app -n production --create-namespace
+helm install my-release ops/charts/my-app -n production --create-namespace
 
 # values 파일 적용
-helm install my-release charts/my-app -f prod-values.yaml
+helm install my-release ops/charts/my-app -f prod-values.yaml
 
 # 개별 값 덮어쓰기
-helm install my-release charts/my-app --set replicaCount=3 --set image.tag=2.0.0
+helm install my-release ops/charts/my-app --set replicaCount=3 --set image.tag=2.0.0
 
 # dry-run (실제 배포 없이 렌더링 결과 확인)
-helm install my-release charts/my-app --dry-run --debug
+helm install my-release ops/charts/my-app --dry-run --debug
 
 # 설치 완료까지 대기 (모든 Pod Ready 상태)
-helm install my-release charts/my-app --wait --timeout 5m
+helm install my-release ops/charts/my-app --wait --timeout 5m
 ```
 
 ---
@@ -58,22 +58,22 @@ helm history my-release
 
 ```bash
 # Chart 코드 변경 후 업그레이드
-helm upgrade my-release charts/my-app
+helm upgrade my-release ops/charts/my-app
 
 # values 변경 적용
-helm upgrade my-release charts/my-app -f prod-values.yaml
+helm upgrade my-release ops/charts/my-app -f prod-values.yaml
 
 # 개별 값 변경
-helm upgrade my-release charts/my-app --set image.tag=3.0.0
+helm upgrade my-release ops/charts/my-app --set image.tag=3.0.0
 
 # 기존 values 유지하면서 일부만 변경 (--reuse-values)
-helm upgrade my-release charts/my-app --reuse-values --set image.tag=3.0.0
+helm upgrade my-release ops/charts/my-app --reuse-values --set image.tag=3.0.0
 
 # 설치 없으면 install, 있으면 upgrade (CI/CD에서 자주 사용)
-helm upgrade --install my-release charts/my-app -f prod-values.yaml
+helm upgrade --install my-release ops/charts/my-app -f prod-values.yaml
 
 # 실패 시 자동 롤백
-helm upgrade my-release charts/my-app --atomic --timeout 3m
+helm upgrade my-release ops/charts/my-app --atomic --timeout 3m
 ```
 
 > `--atomic`: 업그레이드 실패 시 이전 버전으로 자동 롤백합니다.

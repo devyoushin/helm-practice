@@ -1,6 +1,6 @@
 # ──────────────────────────────────────────────
 # Staging 환경 오버라이드
-# 사용법: helm install production-app charts/production-app -f charts/production-app/values-staging.yaml
+# 사용법: helm install production-app ops/charts/production-app -f ops/charts/production-app/values-staging.yaml
 # ──────────────────────────────────────────────
 
 replicaCount: 2

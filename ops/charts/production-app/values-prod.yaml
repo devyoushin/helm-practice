@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────
 # Production 환경 오버라이드
-# 사용법: helm install production-app charts/production-app \
-#           -f charts/production-app/values-prod.yaml \
+# 사용법: helm install production-app ops/charts/production-app \
+#           -f ops/charts/production-app/values-prod.yaml \
 #           --set secret.data.DB_PASSWORD=$DB_PASSWORD \
 #           --set secret.data.API_KEY=$API_KEY
 # ──────────────────────────────────────────────

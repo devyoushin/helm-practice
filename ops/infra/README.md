@@ -66,9 +66,9 @@ helm upgrade kube-prometheus-stack ... --set prometheus.prometheusSpec.retention
 
 **방법 A: kubectl apply (간단)**
 ```bash
-kubectl apply -f infra/karpenter/resources/
-kubectl apply -f infra/monitoring/kube-prometheus-stack/resources/
-kubectl apply -f infra/cert-manager/resources/
+kubectl apply -f ops/infra/karpenter/resources/
+kubectl apply -f ops/infra/monitoring/kube-prometheus-stack/resources/
+kubectl apply -f ops/infra/cert-manager/resources/
 ```
 
 **방법 B: ArgoCD Application (GitOps 권장)**
@@ -79,7 +79,7 @@ metadata:
   name: karpenter-resources
 spec:
   source:
-    path: infra/karpenter/resources
+    path: ops/infra/karpenter/resources
   syncPolicy:
     automated:
       prune: true
@@ -115,7 +115,7 @@ helmfile -e prod sync -l app=monitoring
 helmfile -e prod sync --concurrency 1
 
 # 2. CRD 인스턴스 배포 (operator 준비 후)
-kubectl apply -f infra/cert-manager/resources/
-kubectl apply -f infra/karpenter/resources/
-kubectl apply -f infra/monitoring/kube-prometheus-stack/resources/
+kubectl apply -f ops/infra/cert-manager/resources/
+kubectl apply -f ops/infra/karpenter/resources/
+kubectl apply -f ops/infra/monitoring/kube-prometheus-stack/resources/
 ```
