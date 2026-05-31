@@ -6,6 +6,23 @@ A hands-on repository for learning Helm on Kubernetes.
 
 ---
 
+## 어디서 시작할까
+
+- 문서 지도: `docs/README.md`
+- 첫 문서: `docs/install.md`
+- 운영 보조 자료: `ops/README.md`
+- AI 작업 지침: `CLAUDE.md`
+
+## 구조
+
+| 경로 | 내용 |
+|------|------|
+| `docs/` | 설치, chart 구조, values, lifecycle, hooks, dependency 문서 |
+| `ops/` | Helm chart, 애플리케이션 helmfile, 인프라 helmfile 자산 |
+| `CLAUDE.md` | 이 레포에서 Claude가 참고할 작업 지침 |
+
+---
+
 ## Learning Path
 
 ```
@@ -57,7 +74,7 @@ A hands-on repository for learning Helm on Kubernetes.
 
 ---
 
-## Manifest Structure
+## 상세 구조
 
 ```
 ops/charts/
