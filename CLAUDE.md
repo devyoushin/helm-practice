@@ -8,9 +8,15 @@ helm-practice/
 ├── .claude/
 │   ├── settings.json
 │   └── commands/              # /new-doc, /new-runbook, /review-doc, /add-troubleshooting, /search-kb
-├── docs/agents/                    # doc-writer, chart-designer, values-advisor, troubleshooter
-├── docs/templates/            # service-doc, runbook, incident-report
-├── docs/rules/                     # doc-writing, helm-conventions, security-checklist, monitoring
+├── docs/
+│   ├── getting-started/       # 설치, 초기 설정
+│   ├── core/                  # Chart 구조, values/template, repository
+│   ├── advanced/              # lifecycle, hooks, dependencies
+│   ├── hands-on/              # 첫 Chart 실습
+│   ├── operations/            # 운영 팁, 트러블슈팅
+│   ├── agents/                # doc-writer, chart-designer, values-advisor, troubleshooter
+│   ├── templates/             # service-doc, runbook, incident-report
+│   └── rules/                 # doc-writing, helm-conventions, security-checklist, monitoring
 ├── ops/charts/                    # 실습용 Helm 차트
 ├── ops/infra/                     # CNCF/플랫폼 차트 (helmfile 기반)
 │   ├── helmfile.yaml          # 전체 스택 오케스트레이션
@@ -26,7 +32,6 @@ helm-practice/
 │   └── services/              # 서비스별 차트
 │       ├── api-server/        # REST API 서버 (완성형 예시)
 │       └── worker/            # 비동기 워커 (KEDA 연동)
-└── *-guide.md                 # 주제별 가이드 문서
 ```
 
 ---
@@ -47,15 +52,15 @@ helm-practice/
 
 | 문서 | 주제 |
 |------|------|
-| `install.md` | Helm 설치 및 기본 사용법 |
-| `chart-structure-guide.md` | 차트 구조 상세 |
-| `values-template-guide.md` | values.yaml 및 템플릿 작성 |
-| `dependencies-guide.md` | 의존성 관리 (Chart.lock) |
-| `hooks-guide.md` | 훅(pre-install, post-upgrade 등) |
-| `lifecycle-guide.md` | 릴리즈 라이프사이클 |
-| `repository-guide.md` | Helm 레포지토리 관리 |
-| `tips-guide.md` | 실전 팁 및 트러블슈팅 |
-| `first-chart-practice.md` | 첫 차트 만들기 실습 |
+| `docs/getting-started/install.md` | Helm 설치 및 기본 사용법 |
+| `docs/core/chart-structure-guide.md` | 차트 구조 상세 |
+| `docs/core/values-template-guide.md` | values.yaml 및 템플릿 작성 |
+| `docs/core/repository-guide.md` | Helm 레포지토리 관리 |
+| `docs/advanced/dependencies-guide.md` | 의존성 관리 (Chart.lock) |
+| `docs/advanced/hooks-guide.md` | 훅(pre-install, post-upgrade 등) |
+| `docs/advanced/lifecycle-guide.md` | 릴리즈 라이프사이클 |
+| `docs/operations/tips-guide.md` | 실전 팁 및 트러블슈팅 |
+| `docs/hands-on/first-chart-practice.md` | 첫 차트 만들기 실습 |
 
 ---
 
