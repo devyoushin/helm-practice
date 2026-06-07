@@ -90,3 +90,9 @@ helm repo update
 # 추가된 저장소 확인
 helm repo list
 ```
+
+---
+
+## 6. 업그레이드 문서
+
+Release 업그레이드 실행 절차와 `ops/upgrade/upgrade-helm-release.sh` 사용법은 [Helm Release 업그레이드 가이드](../install/upgrade/)를 참고합니다.
