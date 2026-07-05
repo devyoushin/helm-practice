@@ -95,4 +95,4 @@ helm repo list
 
 ## 6. 업그레이드 문서
 
-Release 업그레이드 실행 절차와 `ops/upgrade/upgrade-helm-release.sh` 사용법은 [Helm Release 업그레이드 가이드](../install/upgrade/)를 참고합니다.
+Release 업그레이드 실행 절차와 `ops/upgrade/upgrade-helm-release.sh` 사용법은 [Helm Release 업그레이드 가이드](../01-installation/upgrade/)를 참고합니다.

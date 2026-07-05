@@ -52,15 +52,15 @@ helm-practice/
 
 | 문서 | 주제 |
 |------|------|
-| `docs/getting-started/install.md` | Helm 설치 및 기본 사용법 |
-| `docs/core/chart-structure-guide.md` | 차트 구조 상세 |
-| `docs/core/values-template-guide.md` | values.yaml 및 템플릿 작성 |
-| `docs/core/repository-guide.md` | Helm 레포지토리 관리 |
-| `docs/advanced/dependencies-guide.md` | 의존성 관리 (Chart.lock) |
-| `docs/advanced/hooks-guide.md` | 훅(pre-install, post-upgrade 등) |
-| `docs/advanced/lifecycle-guide.md` | 릴리즈 라이프사이클 |
-| `docs/operations/tips-guide.md` | 실전 팁 및 트러블슈팅 |
-| `docs/hands-on/first-chart-practice.md` | 첫 차트 만들기 실습 |
+| `docs/02-getting-started/install.md` | Helm 설치 및 기본 사용법 |
+| `docs/03-core/chart-structure-guide.md` | 차트 구조 상세 |
+| `docs/03-core/values-template-guide.md` | values.yaml 및 템플릿 작성 |
+| `docs/03-core/repository-guide.md` | Helm 레포지토리 관리 |
+| `docs/04-advanced/dependencies-guide.md` | 의존성 관리 (Chart.lock) |
+| `docs/04-advanced/hooks-guide.md` | 훅(pre-install, post-upgrade 등) |
+| `docs/04-advanced/lifecycle-guide.md` | 릴리즈 라이프사이클 |
+| `docs/06-operations/tips-guide.md` | 실전 팁 및 트러블슈팅 |
+| `docs/05-hands-on/first-chart-practice.md` | 첫 차트 만들기 실습 |
 
 ---
 
